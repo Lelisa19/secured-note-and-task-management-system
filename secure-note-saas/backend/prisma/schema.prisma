@@ -1,374 +1,344 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
 generator client {
-  provider = "prisma-client-js"
-  output   = "../src/generated/prisma"
+  provider   = "prisma-client-js"
+  output     = "../src/generated/prisma"
+  engineType = "binary"
 }
 
 datasource db {
   provider = "mysql"
 }
 
-enum UserRole {
-  USER
-  ADMIN
-}
-
-enum TaskPriority {
-  LOW
-  MEDIUM
-  HIGH
-}
-
-enum TaskStatus {
-  TODO
-  IN_PROGRESS
-  DONE
-  ARCHIVED
-}
-
-enum NoteStatus {
-  ACTIVE
-  ARCHIVED
-  TRASHED
-}
-
-enum SubscriptionPlan {
-  FREE
-  BASIC
-  PRO
-  ENTERPRISE
-}
-
-model User {
-  id        String   @id @default(cuid())
-  email     String   @unique
-  password  String
-  fullName  String
-  avatar    String?
-  role      UserRole @default(USER)
-  isVerified Boolean @default(false)
-  twoFactorEnabled Boolean @default(false)
-  twoFactorSecret String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  // Relations
-  notes                Note[]
-  createdTasks         Task[]         @relation("TaskCreator")
-  assignedTasks       Task[]         @relation("TaskAssignee")
-  workspaceMemberships WorkspaceMember[]
-  favorites           Favorite[]
-  reminders         Reminder[]
-  notifications     Notification[]
-  activities        Activity[]
-  subscription      Subscription?
-  securityLogs      SecurityLog[]
-  ownedWorkspaces   Workspace[]
-  uploadedFiles      File[]
-  noteSharesCreated NoteShare[]    @relation("ShareCreator")
-  noteSharesReceived NoteShare[]  @relation("ShareRecipient")
-  payments          Payment[]
-  supportTickets    SupportTicket[]
-
-  @@index([email])
-}
-
-model Note {
-  id        String     @id @default(cuid())
-  title     String
-  content   String
-  status    NoteStatus @default(ACTIVE)
-  isEncrypted Boolean @default(false)
-  tags      String     @default("")
-  createdAt DateTime   @default(now())
-  updatedAt DateTime   @updatedAt
-  userId    String
-  workspaceId String?
-
-  // Relations
-  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
-  workspace Workspace? @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-  favorites Favorite[]
-  shares    NoteShare[]
-
-  @@index([userId])
-  @@index([status])
-  @@index([workspaceId])
-}
-
-model Task {
-  id          String       @id @default(cuid())
-  title       String
-  description String?
-  priority    TaskPriority @default(MEDIUM)
-  status      TaskStatus   @default(TODO)
-  dueDate     DateTime?
-  completedAt DateTime?
-  createdAt   DateTime     @default(now())
-  updatedAt   DateTime     @updatedAt
-  userId      String
-  workspaceId String?
-  assigneeId  String?
-  projectId   String?
-
-  // Relations
-  user        User         @relation("TaskCreator", fields: [userId], references: [id], onDelete: Cascade)
-  assignee    User?        @relation("TaskAssignee", fields: [assigneeId], references: [id], onDelete: SetNull)
-  workspace   Workspace?   @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-  project     Project?     @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  favorites   Favorite[]
-  reminders   Reminder[]
-
-  @@index([userId])
-  @@index([status])
-  @@index([workspaceId])
-  @@index([projectId])
-}
-
-model Workspace {
-  id          String            @id @default(cuid())
-  name        String
-  description String?
-  logo        String?
-  createdAt   DateTime          @default(now())
-  updatedAt   DateTime          @updatedAt
-  ownerId     String
-
-  // Relations
-  owner      User              @relation(fields: [ownerId], references: [id], onDelete: Cascade)
-  members    WorkspaceMember[]
-  notes      Note[]
-  tasks      Task[]
-  projects   Project[]
-  files      File[]
-  roles      Role[]
-  activities Activity[]
-
-  @@index([ownerId])
-}
-
-model WorkspaceMember {
-  id          String   @id @default(cuid())
-  workspaceId String
-  userId      String
-  roleId      String?
-  joinedAt    DateTime @default(now())
-  isActive    Boolean  @default(true)
-
-  // Relations
-  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  role      Role?     @relation(fields: [roleId], references: [id], onDelete: SetNull)
-
-  @@unique([workspaceId, userId])
-  @@index([userId])
-}
-
-model Role {
-  id          String            @id @default(cuid())
-  name        String
-  permissions String
-  workspaceId String
-  createdAt   DateTime          @default(now())
-
-  // Relations
-  workspace  Workspace         @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-  members    WorkspaceMember[]
-
-  @@index([workspaceId])
-}
-
-model Project {
-  id          String     @id @default(cuid())
-  name        String
-  description String?
-  status      String     @default("ACTIVE")
-  workspaceId String
-  createdAt   DateTime   @default(now())
-  updatedAt   DateTime   @updatedAt
-
-  // Relations
-  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-  tasks      Task[]
-
-  @@index([workspaceId])
-}
-
-model File {
-  id          String   @id @default(cuid())
-  name        String
-  path        String
-  size        Int
-  mimeType    String
-  workspaceId String
-  uploadedBy  String
-  createdAt   DateTime @default(now())
-
-  // Relations
-  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-  uploader  User      @relation(fields: [uploadedBy], references: [id], onDelete: Cascade)
-
-  @@index([workspaceId])
-  @@index([uploadedBy])
-}
-
-model Favorite {
-  id     String @id @default(cuid())
-  userId String
-  noteId String?
-  taskId String?
-
-  // Relations
-  user  User   @relation(fields: [userId], references: [id], onDelete: Cascade)
-  note  Note?  @relation(fields: [noteId], references: [id], onDelete: Cascade)
-  task  Task?  @relation(fields: [taskId], references: [id], onDelete: Cascade)
-
-  @@index([userId])
-  @@unique([userId, noteId])
-  @@unique([userId, taskId])
-}
-
-model Reminder {
-  id        String   @id @default(cuid())
-  title     String
-  message   String?
-  remindAt  DateTime
-  isSent    Boolean  @default(false)
-  userId    String
-  taskId    String?
-
-  // Relations
-  user User  @relation(fields: [userId], references: [id], onDelete: Cascade)
-  task Task? @relation(fields: [taskId], references: [id], onDelete: Cascade)
-
-  @@index([userId])
-  @@index([remindAt])
-}
-
-model Notification {
-  id        String   @id @default(cuid())
-  title     String
-  message   String
-  type      String
-  isRead    Boolean  @default(false)
-  userId    String
-  createdAt DateTime @default(now())
-
-  // Relations
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@index([userId])
-  @@index([isRead])
-}
-
-model Activity {
-  id          String   @id @default(cuid())
+model activity {
+  id          String     @id
   action      String
   itemType    String
   itemId      String
-  metadata    Json?
+  metadata    String?    @db.LongText
   userId      String
   workspaceId String?
-  createdAt   DateTime @default(now())
+  createdAt   DateTime   @default(now())
+  user        user       @relation(fields: [userId], references: [id], onDelete: Cascade, map: "Activity_userId_fkey")
+  workspace   workspace? @relation(fields: [workspaceId], references: [id], onDelete: Cascade, map: "Activity_workspaceId_fkey")
 
-  // Relations
-  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
-  workspace Workspace? @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-
-  @@index([userId])
-  @@index([workspaceId])
+  @@index([userId], map: "Activity_userId_idx")
+  @@index([workspaceId], map: "Activity_workspaceId_idx")
 }
 
-model NoteShare {
-  id        String   @id @default(cuid())
-  noteId    String
-  sharedBy  String
-  sharedWith String?
-  shareLink String?
-  expiresAt DateTime?
-  createdAt DateTime @default(now())
-
-  // Relations
-  note            Note   @relation(fields: [noteId], references: [id], onDelete: Cascade)
-  sharedByUser    User   @relation("ShareCreator", fields: [sharedBy], references: [id], onDelete: Cascade)
-  sharedWithUser  User?  @relation("ShareRecipient", fields: [sharedWith], references: [id], onDelete: Cascade)
-
-  @@index([noteId])
-  @@unique([shareLink])
-}
-
-model Subscription {
-  id          String           @id @default(cuid())
-  userId      String           @unique
-  plan        SubscriptionPlan @default(FREE)
-  startDate   DateTime         @default(now())
-  endDate     DateTime?
-  isActive    Boolean          @default(true)
-  createdAt   DateTime         @default(now())
-  updatedAt   DateTime         @updatedAt
-
-  // Relations
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-}
-
-model SecurityLog {
-  id        String   @id @default(cuid())
-  userId    String
-  action    String
-  ipAddress String?
-  userAgent String?
-  metadata  Json?
-  createdAt DateTime @default(now())
-
-  // Relations
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@index([userId])
-  @@index([createdAt])
-}
-
-model Payment {
-  id          String   @id @default(cuid())
-  userId      String
-  amount      Float
-  currency    String   @default("USD")
-  status      String
-  paymentMethod String?
-  transactionId String?
-  createdAt   DateTime @default(now())
-
-  // Relations
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@index([userId])
-}
-
-model Announcement {
-  id        String   @id @default(cuid())
+model announcement {
+  id        String   @id
   title     String
   content   String
   type      String
   isActive  Boolean  @default(true)
   createdAt DateTime @default(now())
 
-  @@index([isActive])
+  @@index([isActive], map: "Announcement_isActive_idx")
 }
 
-model SupportTicket {
-  id        String   @id @default(cuid())
+model favorite {
+  id     String  @id
+  userId String
+  noteId String?
+  taskId String?
+  note   note?   @relation(fields: [noteId], references: [id], onDelete: Cascade, map: "Favorite_noteId_fkey")
+  task   task?   @relation(fields: [taskId], references: [id], onDelete: Cascade, map: "Favorite_taskId_fkey")
+  user   user    @relation(fields: [userId], references: [id], onDelete: Cascade, map: "Favorite_userId_fkey")
+
+  @@unique([userId, noteId], map: "Favorite_userId_noteId_key")
+  @@unique([userId, taskId], map: "Favorite_userId_taskId_key")
+  @@index([noteId], map: "Favorite_noteId_fkey")
+  @@index([taskId], map: "Favorite_taskId_fkey")
+  @@index([userId], map: "Favorite_userId_idx")
+}
+
+model file {
+  id          String    @id
+  name        String
+  path        String
+  size        Int
+  mimeType    String
+  workspaceId String
+  uploadedBy  String
+  createdAt   DateTime  @default(now())
+  user        user      @relation(fields: [uploadedBy], references: [id], onDelete: Cascade, map: "File_uploadedBy_fkey")
+  workspace   workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade, map: "File_workspaceId_fkey")
+
+  @@index([uploadedBy], map: "File_uploadedBy_idx")
+  @@index([workspaceId], map: "File_workspaceId_idx")
+}
+
+model note {
+  id          String      @id
+  title       String
+  content     String
+  status      note_status @default(ACTIVE)
+  isEncrypted Boolean     @default(false)
+  tags        String      @default("")
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime
+  userId      String
+  workspaceId String?
+  favorite    favorite[]
+  user        user        @relation(fields: [userId], references: [id], onDelete: Cascade, map: "Note_userId_fkey")
+  workspace   workspace?  @relation(fields: [workspaceId], references: [id], onDelete: Cascade, map: "Note_workspaceId_fkey")
+  noteshare   noteshare[]
+
+  @@index([status], map: "Note_status_idx")
+  @@index([userId], map: "Note_userId_idx")
+  @@index([workspaceId], map: "Note_workspaceId_idx")
+}
+
+model noteshare {
+  id                              String    @id
+  noteId                          String
+  sharedBy                        String
+  sharedWith                      String?
+  shareLink                       String?   @unique(map: "NoteShare_shareLink_key")
+  expiresAt                       DateTime?
+  createdAt                       DateTime  @default(now())
+  note                            note      @relation(fields: [noteId], references: [id], onDelete: Cascade, map: "NoteShare_noteId_fkey")
+  user_noteshare_sharedByTouser   user      @relation("noteshare_sharedByTouser", fields: [sharedBy], references: [id], onDelete: Cascade, map: "NoteShare_sharedBy_fkey")
+  user_noteshare_sharedWithTouser user?     @relation("noteshare_sharedWithTouser", fields: [sharedWith], references: [id], onDelete: Cascade, map: "NoteShare_sharedWith_fkey")
+
+  @@index([noteId], map: "NoteShare_noteId_idx")
+  @@index([sharedBy], map: "NoteShare_sharedBy_fkey")
+  @@index([sharedWith], map: "NoteShare_sharedWith_fkey")
+}
+
+model notification {
+  id        String   @id
+  title     String
+  message   String
+  type      String
+  isRead    Boolean  @default(false)
+  userId    String
+  createdAt DateTime @default(now())
+  user      user     @relation(fields: [userId], references: [id], onDelete: Cascade, map: "Notification_userId_fkey")
+
+  @@index([isRead], map: "Notification_isRead_idx")
+  @@index([userId], map: "Notification_userId_idx")
+}
+
+model payment {
+  id            String   @id
+  userId        String
+  amount        Float
+  currency      String   @default("USD")
+  status        String
+  paymentMethod String?
+  transactionId String?
+  createdAt     DateTime @default(now())
+  user          user     @relation(fields: [userId], references: [id], onDelete: Cascade, map: "Payment_userId_fkey")
+
+  @@index([userId], map: "Payment_userId_idx")
+}
+
+model project {
+  id          String    @id
+  name        String
+  description String?
+  status      String    @default("ACTIVE")
+  workspaceId String
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime
+  workspace   workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade, map: "Project_workspaceId_fkey")
+  task        task[]
+
+  @@index([workspaceId], map: "Project_workspaceId_idx")
+}
+
+model reminder {
+  id       String   @id
+  title    String
+  message  String?
+  remindAt DateTime
+  isSent   Boolean  @default(false)
+  userId   String
+  taskId   String?
+  task     task?    @relation(fields: [taskId], references: [id], onDelete: Cascade, map: "Reminder_taskId_fkey")
+  user     user     @relation(fields: [userId], references: [id], onDelete: Cascade, map: "Reminder_userId_fkey")
+
+  @@index([remindAt], map: "Reminder_remindAt_idx")
+  @@index([taskId], map: "Reminder_taskId_fkey")
+  @@index([userId], map: "Reminder_userId_idx")
+}
+
+model role {
+  id              String            @id
+  name            String
+  permissions     String
+  workspaceId     String
+  createdAt       DateTime          @default(now())
+  workspace       workspace         @relation(fields: [workspaceId], references: [id], onDelete: Cascade, map: "Role_workspaceId_fkey")
+  workspacemember workspacemember[]
+
+  @@index([workspaceId], map: "Role_workspaceId_idx")
+}
+
+model securitylog {
+  id        String   @id
+  userId    String
+  action    String
+  ipAddress String?
+  userAgent String?
+  metadata  String?  @db.LongText
+  createdAt DateTime @default(now())
+  user      user     @relation(fields: [userId], references: [id], onDelete: Cascade, map: "SecurityLog_userId_fkey")
+
+  @@index([createdAt], map: "SecurityLog_createdAt_idx")
+  @@index([userId], map: "SecurityLog_userId_idx")
+}
+
+model subscription {
+  id        String            @id
+  userId    String            @unique(map: "Subscription_userId_key")
+  plan      subscription_plan @default(FREE)
+  startDate DateTime          @default(now())
+  endDate   DateTime?
+  isActive  Boolean           @default(true)
+  createdAt DateTime          @default(now())
+  updatedAt DateTime
+  user      user              @relation(fields: [userId], references: [id], onDelete: Cascade, map: "Subscription_userId_fkey")
+}
+
+model supportticket {
+  id        String   @id
   userId    String
   subject   String
   message   String
-  status      String   @default("OPEN")
+  status    String   @default("OPEN")
   priority  String   @default("MEDIUM")
   createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  updatedAt DateTime
+  user      user     @relation(fields: [userId], references: [id], onDelete: Cascade, map: "SupportTicket_userId_fkey")
 
-  // Relations
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@index([status], map: "SupportTicket_status_idx")
+  @@index([userId], map: "SupportTicket_userId_idx")
+}
 
-  @@index([userId])
-  @@index([status])
+model task {
+  id                         String        @id
+  title                      String
+  description                String?
+  priority                   task_priority @default(MEDIUM)
+  status                     task_status   @default(TODO)
+  dueDate                    DateTime?
+  completedAt                DateTime?
+  createdAt                  DateTime      @default(now())
+  updatedAt                  DateTime
+  userId                     String
+  workspaceId                String?
+  assigneeId                 String?
+  projectId                  String?
+  favorite                   favorite[]
+  reminder                   reminder[]
+  user_task_assigneeIdTouser user?         @relation("task_assigneeIdTouser", fields: [assigneeId], references: [id], map: "Task_assigneeId_fkey")
+  project                    project?      @relation(fields: [projectId], references: [id], onDelete: Cascade, map: "Task_projectId_fkey")
+  user_task_userIdTouser     user          @relation("task_userIdTouser", fields: [userId], references: [id], onDelete: Cascade, map: "Task_userId_fkey")
+  workspace                  workspace?    @relation(fields: [workspaceId], references: [id], onDelete: Cascade, map: "Task_workspaceId_fkey")
+
+  @@index([assigneeId], map: "Task_assigneeId_fkey")
+  @@index([projectId], map: "Task_projectId_idx")
+  @@index([status], map: "Task_status_idx")
+  @@index([userId], map: "Task_userId_idx")
+  @@index([workspaceId], map: "Task_workspaceId_idx")
+}
+
+model user {
+  id                                   String            @id
+  email                                String            @unique(map: "User_email_key")
+  password                             String
+  fullName                             String
+  avatar                               String?
+  role                                 user_role         @default(USER)
+  isVerified                           Boolean           @default(false)
+  twoFactorEnabled                     Boolean           @default(false)
+  twoFactorSecret                      String?
+  createdAt                            DateTime          @default(now())
+  updatedAt                            DateTime
+  activity                             activity[]
+  favorite                             favorite[]
+  file                                 file[]
+  note                                 note[]
+  noteshare_noteshare_sharedByTouser   noteshare[]       @relation("noteshare_sharedByTouser")
+  noteshare_noteshare_sharedWithTouser noteshare[]       @relation("noteshare_sharedWithTouser")
+  notification                         notification[]
+  payment                              payment[]
+  reminder                             reminder[]
+  securitylog                          securitylog[]
+  subscription                         subscription?
+  supportticket                        supportticket[]
+  task_task_assigneeIdTouser           task[]            @relation("task_assigneeIdTouser")
+  task_task_userIdTouser               task[]            @relation("task_userIdTouser")
+  workspace                            workspace[]
+  workspacemember                      workspacemember[]
+
+  @@index([email], map: "User_email_idx")
+}
+
+model workspace {
+  id              String            @id
+  name            String
+  description     String?
+  logo            String?
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime
+  ownerId         String
+  activity        activity[]
+  file            file[]
+  note            note[]
+  project         project[]
+  role            role[]
+  task            task[]
+  user            user              @relation(fields: [ownerId], references: [id], onDelete: Cascade, map: "Workspace_ownerId_fkey")
+  workspacemember workspacemember[]
+
+  @@index([ownerId], map: "Workspace_ownerId_idx")
+}
+
+model workspacemember {
+  id          String    @id
+  workspaceId String
+  userId      String
+  roleId      String?
+  joinedAt    DateTime  @default(now())
+  isActive    Boolean   @default(true)
+  role        role?     @relation(fields: [roleId], references: [id], map: "WorkspaceMember_roleId_fkey")
+  user        user      @relation(fields: [userId], references: [id], onDelete: Cascade, map: "WorkspaceMember_userId_fkey")
+  workspace   workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade, map: "WorkspaceMember_workspaceId_fkey")
+
+  @@unique([workspaceId, userId], map: "WorkspaceMember_workspaceId_userId_key")
+  @@index([roleId], map: "WorkspaceMember_roleId_fkey")
+  @@index([userId], map: "WorkspaceMember_userId_idx")
+}
+
+enum subscription_plan {
+  FREE
+  BASIC
+  PRO
+  ENTERPRISE
+}
+
+enum note_status {
+  ACTIVE
+  ARCHIVED
+  TRASHED
+}
+
+enum task_priority {
+  LOW
+  MEDIUM
+  HIGH
+}
+
+enum task_status {
+  TODO
+  IN_PROGRESS
+  DONE
+  ARCHIVED
+}
+
+enum user_role {
+  USER
+  ADMIN
 }

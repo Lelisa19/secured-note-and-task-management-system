@@ -1,6 +1,6 @@
 const DashboardPreview = () => {
   return (
-    <section className="py-24 px-4 sm:px-6 lg:px-8 bg-slate-50">
+    <section id="demo" className="py-24 px-4 sm:px-6 lg:px-8 bg-slate-50">
       <div className="max-w-7xl mx-auto">
         <div className="text-center mb-16">
           <h2 className="text-4xl md:text-5xl font-bold text-slate-900 mb-4">

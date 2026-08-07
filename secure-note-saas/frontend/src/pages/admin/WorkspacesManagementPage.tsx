@@ -111,7 +111,7 @@ const WorkspacesManagementPage = () => {
     },
   ]);
 
-  const [stats, setStats] = useState<Stat[]>([
+  const [stats] = useState<Stat[]>([
     { label: 'Total Workspaces', value: '3,421', change: '+128', color: 'from-blue-500 to-blue-600', icon: '🏢' },
     { label: 'Active Workspaces', value: '3,105', change: '+89', color: 'from-emerald-500 to-emerald-600', icon: '✅' },
     { label: 'New This Week', value: '47', change: '+12', color: 'from-purple-500 to-purple-600', icon: '🎉' },

@@ -1,7 +1,7 @@
 import { Response } from 'express';
 import * as taskService from '../services/taskService.js';
 import type { AuthRequest } from '../middleware/auth.js';
-import { getSingleQueryParam } from '../lib/utils.js';
+import { getSingleQueryParam, formatErrorMessage, logRequestError } from '../lib/utils.js';
 
 export const getTasks = async (req: AuthRequest, res: Response) => {
   try {
@@ -14,7 +14,8 @@ export const getTasks = async (req: AuthRequest, res: Response) => {
     );
     res.json(tasks);
   } catch (error: any) {
-    res.status(400).json({ message: error.message });
+    logRequestError('GET /api/tasks', error);
+    res.status(400).json({ message: formatErrorMessage(error) });
   }
 };
 
@@ -24,7 +25,8 @@ export const getTaskById = async (req: AuthRequest, res: Response) => {
     const task = await taskService.getTaskById(taskId, req.user!.id);
     res.json(task);
   } catch (error: any) {
-    res.status(404).json({ message: error.message });
+    logRequestError(`GET /api/tasks/${req.params.id}`, error);
+    res.status(404).json({ message: formatErrorMessage(error) });
   }
 };
 
@@ -33,7 +35,8 @@ export const createTask = async (req: AuthRequest, res: Response) => {
     const task = await taskService.createTask(req.body, req.user!.id);
     res.status(201).json(task);
   } catch (error: any) {
-    res.status(400).json({ message: error.message });
+    logRequestError('POST /api/tasks', error, req.body);
+    res.status(400).json({ message: formatErrorMessage(error) });
   }
 };
 
@@ -43,7 +46,8 @@ export const updateTask = async (req: AuthRequest, res: Response) => {
     const task = await taskService.updateTask(taskId, req.body, req.user!.id);
     res.json(task);
   } catch (error: any) {
-    res.status(400).json({ message: error.message });
+    logRequestError(`PUT /api/tasks/${req.params.id}`, error, req.body);
+    res.status(400).json({ message: formatErrorMessage(error) });
   }
 };
 
@@ -53,6 +57,7 @@ export const deleteTask = async (req: AuthRequest, res: Response) => {
     await taskService.deleteTask(taskId, req.user!.id);
     res.status(204).send();
   } catch (error: any) {
-    res.status(404).json({ message: error.message });
+    logRequestError(`DELETE /api/tasks/${req.params.id}`, error);
+    res.status(404).json({ message: formatErrorMessage(error) });
   }
 };

@@ -1,7 +1,6 @@
 import prisma from '../lib/prisma.js';
 import { noteSchema } from '../lib/validations.js';
 
-// Helper to convert between array and string for tags
 const parseTags = (tags: any) => {
   if (Array.isArray(tags)) {
     return tags.join(',');
@@ -9,20 +8,22 @@ const parseTags = (tags: any) => {
   return String(tags || '');
 };
 
-// Helper to convert string back to array
 const stringTagsToArray = (tagString: string) => {
   if (!tagString) return [];
   return tagString.split(',').map(t => t.trim()).filter(Boolean);
 };
 
-export const getNotes = async (userId: string, status?: string, workspaceId?: string) => {
+export const getNotes = async (userId: string, status?: string, workspaceId?: string, type?: string) => {
   const where: any = { userId };
 
   if (status) {
     where.status = status;
   }
 
-  if (workspaceId) {
+  // Strict Personal vs Workspace separation
+  if (type === 'personal' || (!workspaceId && type !== 'all')) {
+    where.workspaceId = null;
+  } else if (workspaceId) {
     where.workspaceId = workspaceId;
   }
 
@@ -33,7 +34,7 @@ export const getNotes = async (userId: string, status?: string, workspaceId?: st
         where: { userId },
       },
       user: {
-        select: { id: true, fullName: true, email: true },
+        select: { id: true, fullName: true, email: true, avatar: true },
       },
     },
     orderBy: { createdAt: 'desc' },
@@ -53,7 +54,7 @@ export const getNoteById = async (noteId: string, userId: string) => {
         where: { userId },
       },
       user: {
-        select: { id: true, fullName: true, email: true },
+        select: { id: true, fullName: true, email: true, avatar: true },
       },
       shares: true,
     },
@@ -76,13 +77,14 @@ export const createNote = async (data: any, userId: string) => {
     ...validated,
     tags: parseTags(validated.tags),
     userId,
+    workspaceId: validated.workspaceId || null,
   };
 
   const note = await prisma.note.create({
     data: noteData,
     include: {
       user: {
-        select: { id: true, fullName: true, email: true },
+        select: { id: true, fullName: true, email: true, avatar: true },
       },
     },
   });
@@ -90,10 +92,10 @@ export const createNote = async (data: any, userId: string) => {
   await prisma.activity.create({
     data: {
       userId,
+      workspaceId: validated.workspaceId || null,
       action: 'CREATE_NOTE',
       itemType: 'NOTE',
       itemId: note.id,
-      workspaceId: validated.workspaceId,
     },
   });
 
@@ -122,7 +124,7 @@ export const updateNote = async (noteId: string, data: any, userId: string) => {
     data: updateData,
     include: {
       user: {
-        select: { id: true, fullName: true, email: true },
+        select: { id: true, fullName: true, email: true, avatar: true },
       },
     },
   });
@@ -130,6 +132,7 @@ export const updateNote = async (noteId: string, data: any, userId: string) => {
   await prisma.activity.create({
     data: {
       userId,
+      workspaceId: updatedNote.workspaceId || null,
       action: 'UPDATE_NOTE',
       itemType: 'NOTE',
       itemId: noteId,
@@ -163,6 +166,8 @@ export const deleteNote = async (noteId: string, userId: string) => {
       itemId: noteId,
     },
   });
+
+  return { message: 'Note deleted successfully' };
 };
 
 export const archiveNote = async (noteId: string, userId: string) => {
@@ -175,4 +180,32 @@ export const trashNote = async (noteId: string, userId: string) => {
 
 export const restoreNote = async (noteId: string, userId: string) => {
   return await updateNote(noteId, { status: 'ACTIVE' }, userId);
+};
+
+export const toggleFavorite = async (noteId: string, userId: string) => {
+  const existing = await prisma.favorite.findUnique({
+    where: {
+      userId_noteId: {
+        userId,
+        noteId,
+      },
+    },
+  });
+
+  if (existing) {
+    await prisma.favorite.delete({
+      where: {
+        id: existing.id,
+      },
+    });
+    return { isFavorite: false };
+  } else {
+    await prisma.favorite.create({
+      data: {
+        userId,
+        noteId,
+      },
+    });
+    return { isFavorite: true };
+  }
 };

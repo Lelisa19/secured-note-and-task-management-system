@@ -1,3 +1,5 @@
+import { Link } from 'react-router-dom';
+
 const Hero = () => {
   return (
     <section className="pt-32 pb-20 px-4 sm:px-6 lg:px-8 bg-gradient-to-br from-slate-50 via-white to-indigo-50">
@@ -13,13 +15,19 @@ const Hero = () => {
           <p className="text-xl text-slate-600 mb-10 max-w-3xl mx-auto">
             Manage notes, tasks, reminders, and collaboration securely with modern productivity tools.
           </p>
-          <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
-            <button className="bg-gradient-to-r from-indigo-600 to-emerald-500 text-white px-8 py-4 rounded-full text-lg font-semibold hover:shadow-xl transition-all transform hover:scale-105">
+          <div className="flex flex-col sm:flex-row gap-4 justify-center items-center w-full max-w-md mx-auto sm:max-w-none">
+            <Link
+              to="/signup"
+              className="w-full sm:w-auto text-center bg-gradient-to-r from-indigo-600 to-emerald-500 text-white px-8 py-4 rounded-full text-lg font-semibold hover:shadow-xl transition-all transform hover:scale-105"
+            >
               Start Free Trial
-            </button>
-            <button className="text-slate-700 px-8 py-4 rounded-full text-lg font-semibold border border-slate-300 hover:bg-slate-100 transition-colors">
+            </Link>
+            <a
+              href="#demo"
+              className="w-full sm:w-auto text-center text-slate-700 px-8 py-4 rounded-full text-lg font-semibold border border-slate-300 hover:bg-slate-100 transition-colors"
+            >
               Watch Demo
-            </button>
+            </a>
           </div>
         </div>
         

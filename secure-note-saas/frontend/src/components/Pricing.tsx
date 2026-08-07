@@ -1,3 +1,5 @@
+import { Link } from 'react-router-dom';
+
 const Pricing = () => {
   const plans = [
     {
@@ -88,15 +90,16 @@ const Pricing = () => {
                   </li>
                 ))}
               </ul>
-              <button
-                className={`w-full py-4 rounded-full font-semibold text-lg transition-all ${
+              <Link
+                to="/signup"
+                className={`w-full block text-center py-4 rounded-full font-semibold text-lg transition-all ${
                   plan.highlighted
                     ? 'bg-white text-indigo-600 hover:bg-slate-100'
                     : 'bg-slate-900 text-white hover:bg-slate-800'
                 }`}
               >
                 Get Started
-              </button>
+              </Link>
             </div>
           ))}
         </div>

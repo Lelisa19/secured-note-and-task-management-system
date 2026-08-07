@@ -34,7 +34,7 @@ const UsersManagementPage = () => {
     { id: 8, name: 'Amanda Taylor', email: 'amanda@example.com', role: 'Free User', status: 'active', joined: 'Aug 10, 2024', workspaces: 1, notes: 12, tasks: 4, lastActive: '2 days ago', subscription: 'Free' },
   ]);
 
-  const [stats, setStats] = useState<Stat[]>([
+  const [stats] = useState<Stat[]>([
     { label: 'Total Users', value: '12,847', change: '+234', color: 'from-indigo-500 to-indigo-600', icon: '👥' },
     { label: 'Active Users', value: '11,256', change: '+189', color: 'from-emerald-500 to-emerald-600', icon: '✅' },
     { label: 'New This Week', value: '412', change: '+56', color: 'from-purple-500 to-purple-600', icon: '🎉' },
