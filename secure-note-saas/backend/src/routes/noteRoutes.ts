@@ -14,5 +14,6 @@ router.delete('/:id', noteController.deleteNote);
 router.patch('/:id/archive', noteController.archiveNote);
 router.patch('/:id/trash', noteController.trashNote);
 router.patch('/:id/restore', noteController.restoreNote);
+router.post('/:id/favorite', noteController.toggleFavorite);
 
 export default router;

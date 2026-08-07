@@ -1,93 +1,106 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { apiRequest } from '../../lib/api';
 
 interface Note {
-  id: number;
+  id: string;
   title: string;
-  preview: string;
+  content: string;
   tags: string[];
-  lastUpdated: string;
-  isFavorite: boolean;
-  folder: string;
+  createdAt: string;
+  updatedAt: string;
+  favorites?: Array<any>;
 }
 
-const initialNotes: Note[] = [
-  {
-    id: 1,
-    title: 'Project Planning 2025',
-    preview: 'This is a detailed plan for our upcoming projects in 2025. We will focus on...',
-    tags: ['Work', 'Planning'],
-    lastUpdated: '2 hours ago',
-    isFavorite: true,
-    folder: 'Work'
-  },
-  {
-    id: 2,
-    title: 'Meeting Notes',
-    preview: 'Notes from today\'s standup meeting. Discussed progress on the new feature...',
-    tags: ['Meeting', 'Work'],
-    lastUpdated: 'Yesterday',
-    isFavorite: false,
-    folder: 'Work'
-  },
-  {
-    id: 3,
-    title: 'Shopping List',
-    preview: 'Milk, eggs, bread, vegetables, fruits, coffee...',
-    tags: ['Personal'],
-    lastUpdated: '3 days ago',
-    isFavorite: false,
-    folder: 'Personal'
-  },
-  {
-    id: 4,
-    title: 'Book Ideas',
-    preview: 'Some great ideas for my next book project. Let\'s explore these concepts...',
-    tags: ['Writing', 'Ideas'],
-    lastUpdated: '1 week ago',
-    isFavorite: true,
-    folder: 'Personal'
-  }
-];
-
 const folders = ['All Notes', 'Work', 'Personal', 'Favorites'];
-const tags = ['All Tags', 'Work', 'Personal', 'Planning', 'Meeting', 'Writing', 'Ideas'];
+const tagsList = ['All Tags', 'Work', 'Personal', 'Planning', 'Meeting', 'Writing', 'Ideas'];
 
 const NotesPage = () => {
-  const [notes, setNotes] = useState<Note[]>(initialNotes);
+  const [notes, setNotes] = useState<Note[]>([]);
+  const [loading, setLoading] = useState(true);
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedFolder, setSelectedFolder] = useState('All Notes');
   const [selectedTag, setSelectedTag] = useState('All Tags');
 
-  const filteredNotes = notes.filter(note => {
-    const matchesSearch = note.title.toLowerCase().includes(searchTerm.toLowerCase()) || 
-                         note.preview.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesFolder = selectedFolder === 'All Notes' || 
-                        (selectedFolder === 'Favorites' ? note.isFavorite : note.folder === selectedFolder);
+  const fetchNotes = async () => {
+    try {
+      const data = await apiRequest('/notes?status=ACTIVE');
+      setNotes(data);
+    } catch (error) {
+      console.error('Failed to fetch notes:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchNotes();
+  }, []);
+
+  const handleCreateNote = async () => {
+    const title = prompt('Enter note title:');
+    if (!title) return;
+    const content = prompt('Enter note content (optional):') || '';
+    const tag = prompt('Enter tag (e.g. Work, Personal):') || 'Work';
+    try {
+      await apiRequest('/notes', {
+        method: 'POST',
+        body: JSON.stringify({
+          title,
+          content,
+          tags: [tag],
+        }),
+      });
+      fetchNotes();
+    } catch (error: any) {
+      alert(error.message || 'Failed to create note');
+    }
+  };
+
+  const toggleFavorite = async (id: string) => {
+    try {
+      await apiRequest(`/notes/${id}/favorite`, { method: 'POST' });
+      fetchNotes();
+    } catch (error: any) {
+      alert(error.message || 'Failed to toggle favorite');
+    }
+  };
+
+  const handleTrashNote = async (id: string) => {
+    if (!confirm('Move note to trash?')) return;
+    try {
+      await apiRequest(`/notes/${id}/trash`, { method: 'PATCH' });
+      fetchNotes();
+    } catch (error: any) {
+      alert(error.message || 'Failed to trash note');
+    }
+  };
+
+  const filteredNotes = notes.filter((note) => {
+    const matchesSearch =
+      note.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      note.content.toLowerCase().includes(searchTerm.toLowerCase());
+
+    const isFavorite = note.favorites && note.favorites.length > 0;
+    const matchesFolder =
+      selectedFolder === 'All Notes' ||
+      (selectedFolder === 'Favorites' ? isFavorite : note.tags.includes(selectedFolder));
+
     const matchesTag = selectedTag === 'All Tags' || note.tags.includes(selectedTag);
-    
+
     return matchesSearch && matchesFolder && matchesTag;
   });
 
-  const toggleFavorite = (id: number) => {
-    setNotes(notes.map(note => 
-      note.id === id ? { ...note, isFavorite: !note.isFavorite } : note
-    ));
-  };
-
   return (
-    <div className="flex h-screen bg-slate-50">
+    <div className="flex min-h-[80vh] bg-slate-50 rounded-2xl overflow-hidden border border-slate-200 shadow-sm">
       {/* Sidebar */}
       <aside className="w-64 bg-white border-r border-slate-200 flex flex-col">
-        <div className="p-6 border-b border-slate-200">
-          <h1 className="text-2xl font-bold bg-gradient-to-r from-indigo-600 to-emerald-500 bg-clip-text text-transparent">
-            SecureFlow
-          </h1>
-        </div>
-        
         <div className="p-4 flex-1 overflow-y-auto">
           <div className="mb-6">
-            <button className="w-full bg-gradient-to-r from-indigo-600 to-emerald-500 text-white py-3 px-4 rounded-xl font-semibold hover:shadow-lg transition-all transform hover:scale-[1.02]">
+            <button 
+              onClick={handleCreateNote}
+              className="w-full bg-gradient-to-r from-indigo-600 to-emerald-500 text-white py-3 px-4 rounded-xl font-semibold hover:shadow-lg transition-all transform hover:scale-[1.02]"
+            >
               + Create Note
             </button>
           </div>
@@ -122,7 +135,7 @@ const NotesPage = () => {
               Tags
             </h3>
             <ul className="space-y-1">
-              {tags.map(tag => (
+              {tagsList.map(tag => (
                 <li key={tag}>
                   <button
                     onClick={() => setSelectedTag(tag)}
@@ -142,7 +155,7 @@ const NotesPage = () => {
       </aside>
 
       {/* Main Content */}
-      <main className="flex-1 flex flex-col">
+      <main className="flex-1 flex flex-col min-w-0">
         {/* Top Navbar */}
         <header className="bg-white border-b border-slate-200 px-6 py-4 flex items-center justify-between">
           <div className="flex items-center space-x-4">
@@ -186,51 +199,70 @@ const NotesPage = () => {
 
         {/* Notes Content */}
         <div className="flex-1 overflow-y-auto p-6">
-          {filteredNotes.length === 0 ? (
-            <div className="flex flex-col items-center justify-center h-full text-center">
+          {loading ? (
+            <div className="flex items-center justify-center h-full">
+              <div className="w-10 h-10 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin"></div>
+            </div>
+          ) : filteredNotes.length === 0 ? (
+            <div className="flex flex-col items-center justify-center h-full text-center py-12">
               <div className="text-6xl mb-4">📝</div>
               <h3 className="text-xl font-semibold text-slate-900 mb-2">No notes found</h3>
               <p className="text-slate-600 mb-6">Create your first note or try a different search</p>
-              <button className="bg-gradient-to-r from-indigo-600 to-emerald-500 text-white px-6 py-3 rounded-xl font-semibold hover:shadow-lg transition-all transform hover:scale-[1.02]">
+              <button 
+                onClick={handleCreateNote}
+                className="bg-gradient-to-r from-indigo-600 to-emerald-500 text-white px-6 py-3 rounded-xl font-semibold hover:shadow-lg transition-all transform hover:scale-[1.02]"
+              >
                 + Create Note
               </button>
             </div>
           ) : (
             <div className={viewMode === 'grid' ? 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6' : 'space-y-4'}>
-              {filteredNotes.map(note => (
-                <div
-                  key={note.id}
-                  className={`bg-white rounded-2xl p-6 border border-slate-200 shadow-sm hover:shadow-lg transition-all ${
-                    viewMode === 'list' ? 'flex items-start space-x-4' : ''
-                  }`}
-                >
-                  <div className={viewMode === 'list' ? 'flex-1' : ''}>
-                    <div className="flex items-start justify-between mb-3">
-                      <h3 className="text-lg font-semibold text-slate-900 line-clamp-1">{note.title}</h3>
-                      <button
-                        onClick={() => toggleFavorite(note.id)}
-                        className="text-xl hover:scale-110 transition-transform"
-                      >
-                        {note.isFavorite ? '⭐' : '☆'}
-                      </button>
-                    </div>
-                    <p className="text-slate-600 text-sm line-clamp-3 mb-4">{note.preview}</p>
-                    <div className="flex items-center justify-between">
-                      <div className="flex flex-wrap gap-2">
-                        {note.tags.map(tag => (
-                          <span
-                            key={tag}
-                            className="px-2 py-1 bg-slate-100 text-slate-600 text-xs font-medium rounded-full"
+              {filteredNotes.map(note => {
+                const isFav = note.favorites && note.favorites.length > 0;
+                return (
+                  <div
+                    key={note.id}
+                    className={`bg-white rounded-2xl p-6 border border-slate-200 shadow-sm hover:shadow-lg transition-all ${
+                      viewMode === 'list' ? 'flex items-start space-x-4' : ''
+                    }`}
+                  >
+                    <div className={viewMode === 'list' ? 'flex-1' : ''}>
+                      <div className="flex items-start justify-between mb-3">
+                        <h3 className="text-lg font-semibold text-slate-900 line-clamp-1">{note.title}</h3>
+                        <div className="flex items-center space-x-2">
+                          <button
+                            onClick={() => toggleFavorite(note.id)}
+                            className="text-xl hover:scale-110 transition-transform"
                           >
-                            {tag}
-                          </span>
-                        ))}
+                            {isFav ? '⭐' : '☆'}
+                          </button>
+                          <button
+                            onClick={() => handleTrashNote(note.id)}
+                            className="text-slate-400 hover:text-red-500 transition-colors text-sm"
+                            title="Move to trash"
+                          >
+                            🗑️
+                          </button>
+                        </div>
                       </div>
-                      <span className="text-xs text-slate-400">{note.lastUpdated}</span>
+                      <p className="text-slate-600 text-sm line-clamp-3 mb-4">{note.content || 'No content'}</p>
+                      <div className="flex items-center justify-between">
+                        <div className="flex flex-wrap gap-2">
+                          {(note.tags || []).map(tag => (
+                            <span
+                              key={tag}
+                              className="px-2 py-1 bg-slate-100 text-slate-600 text-xs font-medium rounded-full"
+                            >
+                              {tag}
+                            </span>
+                          ))}
+                        </div>
+                        <span className="text-xs text-slate-400">{new Date(note.createdAt).toLocaleDateString()}</span>
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>
@@ -240,3 +272,4 @@ const NotesPage = () => {
 };
 
 export default NotesPage;
+

@@ -1,6 +1,8 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 
 const VerifyEmailPage = () => {
+  const navigate = useNavigate();
   const [isVerified, setIsVerified] = useState(false);
   const [isResending, setIsResending] = useState(false);
 
@@ -65,7 +67,10 @@ const VerifyEmailPage = () => {
                 </p>
               </div>
 
-              <button className="w-full py-4 bg-gradient-to-r from-indigo-600 to-emerald-500 text-white font-semibold rounded-xl hover:shadow-xl transition-all transform hover:scale-[1.02]">
+              <button 
+                onClick={() => navigate('/dashboard')}
+                className="w-full py-4 bg-gradient-to-r from-indigo-600 to-emerald-500 text-white font-semibold rounded-xl hover:shadow-xl transition-all transform hover:scale-[1.02]"
+              >
                 Continue to dashboard
               </button>
             </>

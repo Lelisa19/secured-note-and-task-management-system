@@ -1,4 +1,6 @@
 import { useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import { apiRequest } from '../lib/api';
 
 interface FormData {
   fullName: string;
@@ -15,6 +17,7 @@ interface PasswordStrength {
 }
 
 const SignupPage = () => {
+  const navigate = useNavigate();
   const [formData, setFormData] = useState<FormData>({
     fullName: '',
     email: '',
@@ -23,6 +26,7 @@ const SignupPage = () => {
     terms: false,
   });
   const [isLoading, setIsLoading] = useState(false);
+  const [apiError, setApiError] = useState<string | null>(null);
   const [passwordStrength, setPasswordStrength] = useState<PasswordStrength>({
     score: 0,
     label: '',
@@ -47,26 +51,52 @@ const SignupPage = () => {
     const updatedValue = type === 'checkbox' ? checked : value;
     
     setFormData(prev => ({ ...prev, [name]: updatedValue }));
+    setApiError(null);
 
     if (name === 'password') {
       setPasswordStrength(calculatePasswordStrength(value));
     }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setApiError(null);
+    if (formData.password !== formData.confirmPassword) {
+      setApiError('Passwords do not match');
+      return;
+    }
+    if (!formData.terms) {
+      setApiError('Please accept the Terms of Service and Privacy Policy');
+      return;
+    }
     setIsLoading(true);
-    setTimeout(() => {
+    try {
+      const data = await apiRequest('/auth/register', {
+        method: 'POST',
+        body: JSON.stringify({
+          fullName: formData.fullName,
+          email: formData.email,
+          password: formData.password,
+        }),
+      });
+      localStorage.setItem('token', data.token);
+      localStorage.setItem('user', JSON.stringify(data.user));
+      navigate('/dashboard');
+    } catch (error: any) {
+      setApiError(error.message || 'Registration failed');
+    } finally {
       setIsLoading(false);
-      console.log('Form submitted:', formData);
-    }, 2000);
+    }
+  };
+
+  const handleSocialUnavailable = (provider: string) => {
+    alert(`${provider} sign-up is coming soon. Please use email & password for now.`);
   };
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 via-indigo-50 to-emerald-50 p-4">
       <div className="w-full max-w-6xl">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          {/* Left Section - Illustration */}
           <div className="hidden lg:flex flex-col justify-center items-center p-12 bg-gradient-to-br from-indigo-600 to-emerald-500 rounded-3xl text-white relative overflow-hidden">
             <div className="absolute -top-10 -left-10 w-72 h-72 bg-white/10 rounded-full blur-3xl"></div>
             <div className="absolute -bottom-10 -right-10 w-72 h-72 bg-white/10 rounded-full blur-3xl"></div>
@@ -84,67 +114,70 @@ const SignupPage = () => {
                   <div className="text-3xl mb-2">⚡</div>
                   <div className="font-semibold">Real-Time Sync</div>
                 </div>
+                <div className="bg-white/20 backdrop-blur-sm p-6 rounded-2xl">
+                  <div className="text-3xl mb-2">👥</div>
+                  <div className="font-semibold">Team Collaboration</div>
+                </div>
+                <div className="bg-white/20 backdrop-blur-sm p-6 rounded-2xl">
+                  <div className="text-3xl mb-2">⭐</div>
+                  <div className="font-semibold">Favorites & Reminders</div>
+                </div>
               </div>
             </div>
           </div>
 
-          {/* Right Section - Signup Form */}
           <div className="bg-white p-8 md:p-12 rounded-3xl shadow-2xl border border-slate-100">
             <div className="mb-8">
               <h2 className="text-3xl font-bold text-slate-900 mb-2">Create your account</h2>
               <p className="text-slate-600">Start your free 14-day trial today</p>
             </div>
 
-            <form onSubmit={handleSubmit} className="space-y-6">
-              {/* Full Name */}
+            <form onSubmit={handleSubmit} className="space-y-5">
               <div className="relative">
                 <input
                   type="text"
                   name="fullName"
                   value={formData.fullName}
                   onChange={handleInputChange}
-                  className="w-full px-4 py-4 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 transition-all peer"
+                  className="w-full px-4 pt-6 pb-2 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 transition-all peer"
                   placeholder=" "
                   required
                 />
-                <label className="absolute left-4 top-4 text-slate-500 transition-all peer-placeholder-shown:top-4 peer-placeholder-shown:text-base peer-focus:top-2 peer-focus:text-xs peer-focus:text-indigo-600">
+                <label className="absolute left-4 top-2 text-xs text-slate-500 transition-all peer-placeholder-shown:top-4 peer-placeholder-shown:text-base peer-focus:top-2 peer-focus:text-xs peer-focus:text-indigo-600 pointer-events-none">
                   Full name
                 </label>
               </div>
 
-              {/* Email */}
               <div className="relative">
                 <input
                   type="email"
                   name="email"
                   value={formData.email}
                   onChange={handleInputChange}
-                  className="w-full px-4 py-4 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 transition-all peer"
+                  className="w-full px-4 pt-6 pb-2 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 transition-all peer"
                   placeholder=" "
                   required
                 />
-                <label className="absolute left-4 top-4 text-slate-500 transition-all peer-placeholder-shown:top-4 peer-placeholder-shown:text-base peer-focus:top-2 peer-focus:text-xs peer-focus:text-indigo-600">
+                <label className="absolute left-4 top-2 text-xs text-slate-500 transition-all peer-placeholder-shown:top-4 peer-placeholder-shown:text-base peer-focus:top-2 peer-focus:text-xs peer-focus:text-indigo-600 pointer-events-none">
                   Email address
                 </label>
               </div>
 
-              {/* Password */}
               <div className="relative">
                 <input
                   type="password"
                   name="password"
                   value={formData.password}
                   onChange={handleInputChange}
-                  className="w-full px-4 py-4 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 transition-all peer"
+                  className="w-full px-4 pt-6 pb-2 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 transition-all peer"
                   placeholder=" "
                   required
                 />
-                <label className="absolute left-4 top-4 text-slate-500 transition-all peer-placeholder-shown:top-4 peer-placeholder-shown:text-base peer-focus:top-2 peer-focus:text-xs peer-focus:text-indigo-600">
+                <label className="absolute left-4 top-2 text-xs text-slate-500 transition-all peer-placeholder-shown:top-4 peer-placeholder-shown:text-base peer-focus:top-2 peer-focus:text-xs peer-focus:text-indigo-600 pointer-events-none">
                   Password
                 </label>
               </div>
 
-              {/* Password Strength Indicator */}
               {formData.password && (
                 <div className="space-y-2">
                   <div className="flex items-center justify-between text-sm">
@@ -162,18 +195,17 @@ const SignupPage = () => {
                 </div>
               )}
 
-              {/* Confirm Password */}
               <div className="relative">
                 <input
                   type="password"
                   name="confirmPassword"
                   value={formData.confirmPassword}
                   onChange={handleInputChange}
-                  className="w-full px-4 py-4 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 transition-all peer"
+                  className="w-full px-4 pt-6 pb-2 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 transition-all peer"
                   placeholder=" "
                   required
                 />
-                <label className="absolute left-4 top-4 text-slate-500 transition-all peer-placeholder-shown:top-4 peer-placeholder-shown:text-base peer-focus:top-2 peer-focus:text-xs peer-focus:text-indigo-600">
+                <label className="absolute left-4 top-2 text-xs text-slate-500 transition-all peer-placeholder-shown:top-4 peer-placeholder-shown:text-base peer-focus:top-2 peer-focus:text-xs peer-focus:text-indigo-600 pointer-events-none">
                   Confirm password
                 </label>
                 {formData.confirmPassword && formData.password !== formData.confirmPassword && (
@@ -181,7 +213,6 @@ const SignupPage = () => {
                 )}
               </div>
 
-              {/* Terms & Conditions */}
               <label className="flex items-start space-x-3 cursor-pointer">
                 <input
                   type="checkbox"
@@ -192,12 +223,17 @@ const SignupPage = () => {
                   required
                 />
                 <span className="text-slate-600 text-sm">
-                  I agree to the <a href="#" className="text-indigo-600 hover:underline">Terms of Service</a> and{' '}
-                  <a href="#" className="text-indigo-600 hover:underline">Privacy Policy</a>
+                  I agree to the <span className="text-indigo-600 font-medium">Terms of Service</span> and{' '}
+                  <span className="text-indigo-600 font-medium">Privacy Policy</span>
                 </span>
               </label>
 
-              {/* Create Account Button */}
+              {apiError && (
+                <div className="bg-red-50 border border-red-200 text-red-700 text-sm rounded-xl px-4 py-3">
+                  {apiError}
+                </div>
+              )}
+
               <button
                 type="submit"
                 disabled={isLoading}
@@ -213,7 +249,6 @@ const SignupPage = () => {
                 )}
               </button>
 
-              {/* Divider */}
               <div className="relative">
                 <div className="absolute inset-0 flex items-center">
                   <div className="w-full border-t border-slate-200"></div>
@@ -223,10 +258,10 @@ const SignupPage = () => {
                 </div>
               </div>
 
-              {/* Social Signup Buttons */}
               <div className="grid grid-cols-2 gap-4">
                 <button
                   type="button"
+                  onClick={() => handleSocialUnavailable('Google')}
                   className="flex items-center justify-center py-4 bg-white border border-slate-200 rounded-xl hover:bg-slate-50 transition-colors"
                 >
                   <span className="mr-2 text-xl">G</span>
@@ -234,6 +269,7 @@ const SignupPage = () => {
                 </button>
                 <button
                   type="button"
+                  onClick={() => handleSocialUnavailable('GitHub')}
                   className="flex items-center justify-center py-4 bg-white border border-slate-200 rounded-xl hover:bg-slate-50 transition-colors"
                 >
                   <span className="mr-2 text-xl">🐙</span>
@@ -242,13 +278,12 @@ const SignupPage = () => {
               </div>
             </form>
 
-            {/* Login Redirect */}
             <div className="mt-8 text-center">
               <p className="text-slate-600">
                 Already have an account?{' '}
-                <a href="#" className="text-indigo-600 font-semibold hover:underline">
+                <Link to="/login" className="text-indigo-600 font-semibold hover:underline">
                   Log in
-                </a>
+                </Link>
               </p>
             </div>
           </div>

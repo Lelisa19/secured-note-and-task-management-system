@@ -1,7 +1,7 @@
 import prisma from '../lib/prisma.js';
 import { taskSchema } from '../lib/validations.js';
 
-export const getTasks = async (userId: string, status?: string, workspaceId?: string, projectId?: string) => {
+export const getTasks = async (userId: string, status?: string, workspaceId?: string, projectId?: string, type?: string) => {
   const where: any = {
     OR: [
       { userId },
@@ -13,7 +13,10 @@ export const getTasks = async (userId: string, status?: string, workspaceId?: st
     where.status = status;
   }
 
-  if (workspaceId) {
+  // Strict separation for Personal tasks vs Workspace tasks
+  if (type === 'personal' || (!workspaceId && type !== 'all')) {
+    where.workspaceId = null;
+  } else if (workspaceId) {
     where.workspaceId = workspaceId;
   }
 
@@ -25,10 +28,10 @@ export const getTasks = async (userId: string, status?: string, workspaceId?: st
     where,
     include: {
       user: {
-        select: { id: true, fullName: true, email: true },
+        select: { id: true, fullName: true, email: true, avatar: true },
       },
       assignee: {
-        select: { id: true, fullName: true, email: true },
+        select: { id: true, fullName: true, email: true, avatar: true },
       },
       project: true,
     },
@@ -47,10 +50,10 @@ export const getTaskById = async (taskId: string, userId: string) => {
     },
     include: {
       user: {
-        select: { id: true, fullName: true, email: true },
+        select: { id: true, fullName: true, email: true, avatar: true },
       },
       assignee: {
-        select: { id: true, fullName: true, email: true },
+        select: { id: true, fullName: true, email: true, avatar: true },
       },
       project: true,
     },
@@ -69,6 +72,7 @@ export const createTask = async (data: any, userId: string) => {
   const taskData: any = {
     ...validated,
     userId,
+    workspaceId: validated.workspaceId || null,
   };
 
   if (validated.dueDate) {
@@ -79,10 +83,10 @@ export const createTask = async (data: any, userId: string) => {
     data: taskData,
     include: {
       user: {
-        select: { id: true, fullName: true, email: true },
+        select: { id: true, fullName: true, email: true, avatar: true },
       },
       assignee: {
-        select: { id: true, fullName: true, email: true },
+        select: { id: true, fullName: true, email: true, avatar: true },
       },
       project: true,
     },
@@ -91,10 +95,10 @@ export const createTask = async (data: any, userId: string) => {
   await prisma.activity.create({
     data: {
       userId,
+      workspaceId: validated.workspaceId || null,
       action: 'CREATE_TASK',
       itemType: 'TASK',
       itemId: task.id,
-      workspaceId: validated.workspaceId,
     },
   });
 
@@ -129,10 +133,10 @@ export const updateTask = async (taskId: string, data: any, userId: string) => {
     data: updateData,
     include: {
       user: {
-        select: { id: true, fullName: true, email: true },
+        select: { id: true, fullName: true, email: true, avatar: true },
       },
       assignee: {
-        select: { id: true, fullName: true, email: true },
+        select: { id: true, fullName: true, email: true, avatar: true },
       },
       project: true,
     },
@@ -141,6 +145,7 @@ export const updateTask = async (taskId: string, data: any, userId: string) => {
   await prisma.activity.create({
     data: {
       userId,
+      workspaceId: updatedTask.workspaceId || null,
       action: 'UPDATE_TASK',
       itemType: 'TASK',
       itemId: taskId,
@@ -174,4 +179,6 @@ export const deleteTask = async (taskId: string, userId: string) => {
       itemId: taskId,
     },
   });
+
+  return { message: 'Task deleted successfully' };
 };
