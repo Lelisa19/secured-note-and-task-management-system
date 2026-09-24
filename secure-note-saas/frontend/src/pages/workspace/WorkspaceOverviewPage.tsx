@@ -2,11 +2,13 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { apiRequest } from '../../lib/api';
 import { CreateWorkspaceModal } from '../../components/workspace/CreateWorkspaceModal';
+import { CreateProjectModal } from '../../components/workspace/CreateProjectModal';
 
 const WorkspaceOverviewPage = () => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [showCreate, setShowCreate] = useState(false);
+  const [showProjectModal, setShowProjectModal] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const [stats, setStats] = useState<Array<{ label: string; value: string; change: string; color: string }>>([]);
@@ -112,22 +114,12 @@ const WorkspaceOverviewPage = () => {
     loadWorkspaceData();
   }, []);
 
-  const handleCreateProject = async () => {
+  const handleCreateProject = () => {
     if (!workspaceId) {
       setShowCreate(true);
       return;
     }
-    const title = prompt('New project name:');
-    if (!title) return;
-    try {
-      await apiRequest(`/workspaces/${workspaceId}/projects`, {
-        method: 'POST',
-        body: JSON.stringify({ name: title, description: '' }),
-      });
-      loadWorkspaceData();
-    } catch (e: any) {
-      alert(e.message || 'Failed to create project');
-    }
+    setShowProjectModal(true);
   };
 
   if (loading) {
@@ -148,10 +140,10 @@ const WorkspaceOverviewPage = () => {
         <div className="flex space-x-3">
           <button
             type="button"
-            onClick={() => navigate('/workspaces')}
-            className="px-4 py-2 bg-slate-100 text-slate-700 rounded-xl hover:bg-slate-200 transition-colors"
+            onClick={() => navigate(workspaceId ? `/workspace/${workspaceId}/analytics` : 'analytics')}
+            className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium rounded-xl transition-all flex items-center gap-1.5 shadow-sm"
           >
-            📊 Reports
+            <span>📊 Reports & Analytics</span>
           </button>
           <button
             type="button"
@@ -222,7 +214,7 @@ const WorkspaceOverviewPage = () => {
                   <h3 className="text-lg font-semibold text-slate-900">Active Members</h3>
                   <button
                     type="button"
-                    onClick={() => navigate('/workspaces')}
+                    onClick={() => navigate(workspaceId ? `/workspace/${workspaceId}/members` : 'members')}
                     className="text-indigo-600 text-sm font-medium hover:underline"
                   >
                     View all →
@@ -260,7 +252,7 @@ const WorkspaceOverviewPage = () => {
                   <h3 className="text-lg font-semibold text-slate-900">Recent Shared Notes</h3>
                   <button
                     type="button"
-                    onClick={() => navigate('/notes')}
+                    onClick={() => navigate(workspaceId ? `/workspace/${workspaceId}/notes` : 'notes')}
                     className="text-indigo-600 text-sm font-medium hover:underline"
                   >
                     View all →
@@ -276,7 +268,7 @@ const WorkspaceOverviewPage = () => {
                       <div
                         key={note.id}
                         className="flex items-center justify-between p-4 bg-slate-50 rounded-xl hover:bg-slate-100 cursor-pointer transition-colors"
-                        onClick={() => navigate(`/notes/${note.id}`)}
+                        onClick={() => navigate(workspaceId ? `/workspace/${workspaceId}/notes` : '/dashboard/notes')}
                       >
                         <div>
                           <h4 className="font-semibold text-slate-900">{note.title}</h4>
@@ -327,6 +319,13 @@ const WorkspaceOverviewPage = () => {
         isOpen={showCreate}
         onClose={() => setShowCreate(false)}
         onSuccess={() => loadWorkspaceData(true)}
+      />
+
+      <CreateProjectModal
+        isOpen={showProjectModal}
+        onClose={() => setShowProjectModal(false)}
+        workspaceId={workspaceId}
+        onSuccess={() => loadWorkspaceData()}
       />
     </div>
   );

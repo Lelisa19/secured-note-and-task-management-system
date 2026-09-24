@@ -1,9 +1,15 @@
 import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { apiRequest } from '../../lib/api';
+import { CreateNoteModal } from '../../components/modals/CreateNoteModal';
+import { CreateTaskModal } from '../../components/modals/CreateTaskModal';
 
 const DashboardOverviewPage = () => {
+  const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [user, setUser] = useState<{ fullName: string } | null>(null);
+  const [isNoteModalOpen, setIsNoteModalOpen] = useState(false);
+  const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
   const [data, setData] = useState<{
     stats: {
       totalNotes: number;
@@ -33,32 +39,12 @@ const DashboardOverviewPage = () => {
     fetchStats();
   }, []);
 
-  const handleCreateNote = async () => {
-    const title = prompt('Enter note title:');
-    if (!title) return;
-    try {
-      await apiRequest('/notes', {
-        method: 'POST',
-        body: JSON.stringify({ title, content: '', tags: [] }),
-      });
-      fetchStats();
-    } catch (error: any) {
-      alert(error.message || 'Failed to create note');
-    }
+  const handleCreateNote = () => {
+    setIsNoteModalOpen(true);
   };
 
-  const handleCreateTask = async () => {
-    const title = prompt('Enter task title:');
-    if (!title) return;
-    try {
-      await apiRequest('/tasks', {
-        method: 'POST',
-        body: JSON.stringify({ title, status: 'TODO', priority: 'MEDIUM' }),
-      });
-      fetchStats();
-    } catch (error: any) {
-      alert(error.message || 'Failed to create task');
-    }
+  const handleCreateTask = () => {
+    setIsTaskModalOpen(true);
   };
 
   const statsList = data ? [
@@ -146,13 +132,23 @@ const DashboardOverviewPage = () => {
         <div className="lg:col-span-2 bg-white rounded-2xl p-6 border border-slate-200 shadow-sm">
           <div className="flex items-center justify-between mb-6">
             <h2 className="text-xl font-bold text-slate-900">Recent Notes</h2>
+            <button
+              onClick={() => navigate('/dashboard/notes')}
+              className="text-indigo-600 text-sm font-medium hover:underline flex items-center gap-1"
+            >
+              View all →
+            </button>
           </div>
           <div className="space-y-4">
             {(data?.recentNotes || []).length === 0 ? (
               <p className="text-slate-500 text-sm py-4">No recent notes found.</p>
             ) : (
               (data?.recentNotes || []).map((note) => (
-                <div key={note.id} className="p-4 bg-slate-50 rounded-xl hover:bg-slate-100 transition-colors">
+                <div 
+                  key={note.id} 
+                  onClick={() => navigate(`/dashboard/notes`)}
+                  className="p-4 bg-slate-50 rounded-xl hover:bg-slate-100 cursor-pointer transition-colors"
+                >
                   <div className="flex items-start justify-between mb-2">
                     <h3 className="font-semibold text-slate-900">{note.title}</h3>
                     <span className="text-xs bg-slate-200 text-slate-700 px-2 py-1 rounded-full">
@@ -173,13 +169,23 @@ const DashboardOverviewPage = () => {
         <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm">
           <div className="flex items-center justify-between mb-6">
             <h2 className="text-xl font-bold text-slate-900">Upcoming Tasks</h2>
+            <button
+              onClick={() => navigate('/dashboard/tasks')}
+              className="text-indigo-600 text-sm font-medium hover:underline flex items-center gap-1"
+            >
+              View all →
+            </button>
           </div>
           <div className="space-y-3">
             {(data?.upcomingTasks || []).length === 0 ? (
               <p className="text-slate-500 text-sm py-4">No upcoming tasks found.</p>
             ) : (
               (data?.upcomingTasks || []).map((task) => (
-                <div key={task.id} className="flex items-center justify-between p-3 bg-slate-50 rounded-xl">
+                <div 
+                  key={task.id} 
+                  onClick={() => navigate('/dashboard/tasks')}
+                  className="flex items-center justify-between p-3 bg-slate-50 rounded-xl cursor-pointer hover:bg-slate-100 transition-colors"
+                >
                   <div className="flex items-center space-x-3">
                     <div className={`w-5 h-5 rounded-full border-2 ${task.status === 'DONE' ? 'bg-emerald-500 border-emerald-500' : 'border-slate-300'} flex items-center justify-center text-white text-xs`}>
                       {task.status === 'DONE' && '✓'}
@@ -208,6 +214,12 @@ const DashboardOverviewPage = () => {
         <div className="lg:col-span-2 bg-white rounded-2xl p-6 border border-slate-200 shadow-sm">
           <div className="flex items-center justify-between mb-6">
             <h2 className="text-xl font-bold text-slate-900">Activity Feed</h2>
+            <button
+              onClick={() => navigate('/dashboard/activity')}
+              className="text-indigo-600 text-sm font-medium hover:underline flex items-center gap-1"
+            >
+              View all →
+            </button>
           </div>
           <div className="space-y-4">
             {(data?.recentActivity || []).length === 0 ? (
@@ -252,6 +264,18 @@ const DashboardOverviewPage = () => {
           </div>
         </div>
       </div>
+
+      {/* Modals */}
+      <CreateNoteModal
+        isOpen={isNoteModalOpen}
+        onClose={() => setIsNoteModalOpen(false)}
+        onSuccess={fetchStats}
+      />
+      <CreateTaskModal
+        isOpen={isTaskModalOpen}
+        onClose={() => setIsTaskModalOpen(false)}
+        onSuccess={fetchStats}
+      />
     </div>
   );
 };

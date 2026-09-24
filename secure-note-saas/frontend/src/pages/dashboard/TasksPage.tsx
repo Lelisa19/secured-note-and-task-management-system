@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { apiRequest } from '../../lib/api';
+import { CreateTaskModal } from '../../components/modals/CreateTaskModal';
 
 interface Task {
   id: string;
@@ -15,6 +16,7 @@ interface Task {
 const TasksPage = () => {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
 
   const fetchTasks = async () => {
     try {
@@ -31,24 +33,8 @@ const TasksPage = () => {
     fetchTasks();
   }, []);
 
-  const handleCreateTask = async () => {
-    const title = prompt('Enter task title:');
-    if (!title) return;
-    const priorityInput = prompt('Enter priority (LOW, MEDIUM, HIGH):', 'MEDIUM')?.toUpperCase();
-    const priority = ['LOW', 'MEDIUM', 'HIGH'].includes(priorityInput || '') ? priorityInput : 'MEDIUM';
-    try {
-      await apiRequest('/tasks', {
-        method: 'POST',
-        body: JSON.stringify({
-          title,
-          priority,
-          status: 'TODO',
-        }),
-      });
-      fetchTasks();
-    } catch (error: any) {
-      alert(error.message || 'Failed to create task');
-    }
+  const handleCreateTask = () => {
+    setIsCreateModalOpen(true);
   };
 
   const handleMoveTask = async (taskId: string, currentStatus: string) => {
@@ -161,6 +147,13 @@ const TasksPage = () => {
           ))}
         </div>
       )}
+
+      {/* Create Task Modal */}
+      <CreateTaskModal
+        isOpen={isCreateModalOpen}
+        onClose={() => setIsCreateModalOpen(false)}
+        onSuccess={fetchTasks}
+      />
     </div>
   );
 };
