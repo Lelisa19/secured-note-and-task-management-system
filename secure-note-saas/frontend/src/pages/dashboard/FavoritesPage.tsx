@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { apiRequest } from '../../lib/api';
 
 interface Note {
@@ -11,6 +12,7 @@ interface Note {
 }
 
 const FavoritesPage = () => {
+  const navigate = useNavigate();
   const [view, setView] = useState<'grid' | 'list'>('grid');
   const [notes, setNotes] = useState<Note[]>([]);
   const [loading, setLoading] = useState(true);
@@ -79,11 +81,18 @@ const FavoritesPage = () => {
           <h2 className="text-xl font-semibold text-slate-900 mb-4">Favorite Notes ({notes.length})</h2>
           <div className={`grid gap-4 ${view === 'grid' ? 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3' : 'grid-cols-1'}`}>
             {notes.map((note) => (
-              <div key={note.id} className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 hover:shadow-md transition-all">
+              <div 
+                key={note.id} 
+                onClick={() => navigate(`/dashboard/notes/${note.id}`)}
+                className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 hover:shadow-md transition-all cursor-pointer group"
+              >
                 <div className="flex items-start justify-between mb-3">
-                  <h3 className="font-semibold text-slate-900">{note.title}</h3>
+                  <h3 className="font-semibold text-slate-900 group-hover:text-indigo-600 transition-colors">{note.title}</h3>
                   <button 
-                    onClick={() => toggleFavorite(note.id)}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      toggleFavorite(note.id);
+                    }}
                     className="text-amber-500 hover:scale-110 transition-transform"
                     title="Remove from favorites"
                   >
@@ -91,9 +100,9 @@ const FavoritesPage = () => {
                   </button>
                 </div>
                 <p className="text-sm text-slate-600 line-clamp-2 mb-3">{note.content || 'No content'}</p>
-                <div className="flex items-center justify-between">
+                <div className="flex items-center justify-between pt-2 border-t border-slate-100">
                   <span className="text-xs bg-slate-100 text-slate-700 px-2 py-1 rounded-full">{note.tags[0] || 'Note'}</span>
-                  <span className="text-xs text-slate-400">{new Date(note.createdAt).toLocaleDateString()}</span>
+                  <span className="text-xs text-indigo-600 font-semibold group-hover:underline flex items-center gap-1">View Note →</span>
                 </div>
               </div>
             ))}

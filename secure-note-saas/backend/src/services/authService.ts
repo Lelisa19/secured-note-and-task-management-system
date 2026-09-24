@@ -3,6 +3,26 @@ import jwt from 'jsonwebtoken';
 import prisma from '../lib/prisma.js';
 import { registerSchema, loginSchema } from '../lib/validations.js';
 
+export const searchOrganizations = async (query?: string) => {
+  const searchFilter = query && query.trim().length > 0
+    ? {
+        name: {
+          contains: query.trim(),
+        },
+      }
+    : {};
+
+  return prisma.workspace.findMany({
+    where: searchFilter,
+    select: {
+      id: true,
+      name: true,
+      description: true,
+    },
+    take: 10,
+  });
+};
+
 export const register = async (data: { fullName: string; email: string; password: string }) => {
   const validated = registerSchema.parse(data);
 
@@ -35,6 +55,7 @@ export const register = async (data: { fullName: string; email: string; password
 
   return { user: sanitizeUser(user), token };
 };
+
 
 export const login = async (data: { email: string; password: string }) => {
   const validated = loginSchema.parse(data);

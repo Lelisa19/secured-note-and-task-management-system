@@ -1,5 +1,7 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { apiRequest } from '../../lib/api';
+import { CreateNoteModal } from '../../components/modals/CreateNoteModal';
 
 interface Note {
   id: string;
@@ -15,12 +17,14 @@ const folders = ['All Notes', 'Work', 'Personal', 'Favorites'];
 const tagsList = ['All Tags', 'Work', 'Personal', 'Planning', 'Meeting', 'Writing', 'Ideas'];
 
 const NotesPage = () => {
+  const navigate = useNavigate();
   const [notes, setNotes] = useState<Note[]>([]);
   const [loading, setLoading] = useState(true);
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedFolder, setSelectedFolder] = useState('All Notes');
   const [selectedTag, setSelectedTag] = useState('All Tags');
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
 
   const fetchNotes = async () => {
     try {
@@ -37,24 +41,8 @@ const NotesPage = () => {
     fetchNotes();
   }, []);
 
-  const handleCreateNote = async () => {
-    const title = prompt('Enter note title:');
-    if (!title) return;
-    const content = prompt('Enter note content (optional):') || '';
-    const tag = prompt('Enter tag (e.g. Work, Personal):') || 'Work';
-    try {
-      await apiRequest('/notes', {
-        method: 'POST',
-        body: JSON.stringify({
-          title,
-          content,
-          tags: [tag],
-        }),
-      });
-      fetchNotes();
-    } catch (error: any) {
-      alert(error.message || 'Failed to create note');
-    }
+  const handleCreateNote = () => {
+    setIsCreateModalOpen(true);
   };
 
   const toggleFavorite = async (id: string) => {
@@ -222,14 +210,15 @@ const NotesPage = () => {
                 return (
                   <div
                     key={note.id}
-                    className={`bg-white rounded-2xl p-6 border border-slate-200 shadow-sm hover:shadow-lg transition-all ${
+                    onClick={() => navigate(`/dashboard/notes/${note.id}`)}
+                    className={`bg-white rounded-2xl p-6 border border-slate-200 shadow-sm hover:shadow-lg transition-all cursor-pointer group ${
                       viewMode === 'list' ? 'flex items-start space-x-4' : ''
                     }`}
                   >
                     <div className={viewMode === 'list' ? 'flex-1' : ''}>
                       <div className="flex items-start justify-between mb-3">
-                        <h3 className="text-lg font-semibold text-slate-900 line-clamp-1">{note.title}</h3>
-                        <div className="flex items-center space-x-2">
+                        <h3 className="text-lg font-semibold text-slate-900 line-clamp-1 group-hover:text-indigo-600 transition-colors">{note.title}</h3>
+                        <div className="flex items-center space-x-2" onClick={(e) => e.stopPropagation()}>
                           <button
                             onClick={() => toggleFavorite(note.id)}
                             className="text-xl hover:scale-110 transition-transform"
@@ -246,7 +235,7 @@ const NotesPage = () => {
                         </div>
                       </div>
                       <p className="text-slate-600 text-sm line-clamp-3 mb-4">{note.content || 'No content'}</p>
-                      <div className="flex items-center justify-between">
+                      <div className="flex items-center justify-between pt-2 border-t border-slate-100">
                         <div className="flex flex-wrap gap-2">
                           {(note.tags || []).map(tag => (
                             <span
@@ -257,7 +246,9 @@ const NotesPage = () => {
                             </span>
                           ))}
                         </div>
-                        <span className="text-xs text-slate-400">{new Date(note.createdAt).toLocaleDateString()}</span>
+                        <span className="text-xs text-indigo-600 font-semibold group-hover:underline flex items-center gap-1">
+                          View Note →
+                        </span>
                       </div>
                     </div>
                   </div>
@@ -267,6 +258,13 @@ const NotesPage = () => {
           )}
         </div>
       </main>
+
+      {/* Create Note Modal */}
+      <CreateNoteModal
+        isOpen={isCreateModalOpen}
+        onClose={() => setIsCreateModalOpen(false)}
+        onSuccess={fetchNotes}
+      />
     </div>
   );
 };

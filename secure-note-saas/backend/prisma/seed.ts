@@ -1,10 +1,10 @@
-import mysql from 'mysql2/promise';
+import { createConnection } from 'mysql2/promise';
 import bcrypt from 'bcryptjs';
 
 async function main() {
   console.log('🌱 Starting database seeding with mysql2...');
 
-  const conn = await mysql.createConnection({
+  const conn = await createConnection({
     host: '127.0.0.1',
     port: 3306,
     user: 'root',

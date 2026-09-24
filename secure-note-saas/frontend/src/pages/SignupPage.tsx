@@ -25,8 +25,10 @@ const SignupPage = () => {
     confirmPassword: '',
     terms: false,
   });
+
   const [isLoading, setIsLoading] = useState(false);
   const [apiError, setApiError] = useState<string | null>(null);
+
   const [passwordStrength, setPasswordStrength] = useState<PasswordStrength>({
     score: 0,
     label: '',
@@ -49,8 +51,8 @@ const SignupPage = () => {
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value, type, checked } = e.target;
     const updatedValue = type === 'checkbox' ? checked : value;
-    
-    setFormData(prev => ({ ...prev, [name]: updatedValue }));
+
+    setFormData((prev) => ({ ...prev, [name]: updatedValue }));
     setApiError(null);
 
     if (name === 'password') {
@@ -61,15 +63,19 @@ const SignupPage = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setApiError(null);
+
     if (formData.password !== formData.confirmPassword) {
       setApiError('Passwords do not match');
       return;
     }
+
     if (!formData.terms) {
       setApiError('Please accept the Terms of Service and Privacy Policy');
       return;
     }
+
     setIsLoading(true);
+
     try {
       const data = await apiRequest('/auth/register', {
         method: 'POST',
@@ -79,6 +85,7 @@ const SignupPage = () => {
           password: formData.password,
         }),
       });
+
       localStorage.setItem('token', data.token);
       localStorage.setItem('user', JSON.stringify(data.user));
       navigate('/dashboard');
@@ -94,16 +101,17 @@ const SignupPage = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 via-indigo-50 to-emerald-50 p-4">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 via-indigo-50 to-emerald-50 p-4 py-12">
       <div className="w-full max-w-6xl">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          <div className="hidden lg:flex flex-col justify-center items-center p-12 bg-gradient-to-br from-indigo-600 to-emerald-500 rounded-3xl text-white relative overflow-hidden">
+          {/* Left Hero Banner */}
+          <div className="hidden lg:flex flex-col justify-center items-center p-12 bg-gradient-to-br from-indigo-600 to-emerald-500 rounded-3xl text-white relative overflow-hidden shadow-2xl">
             <div className="absolute -top-10 -left-10 w-72 h-72 bg-white/10 rounded-full blur-3xl"></div>
             <div className="absolute -bottom-10 -right-10 w-72 h-72 bg-white/10 rounded-full blur-3xl"></div>
             <div className="relative z-10 text-center">
               <h1 className="text-4xl font-bold mb-4">SecureFlow</h1>
               <p className="text-xl text-white/90 mb-8">
-                Secure your notes, tasks, and ideas in one private workspace.
+                Private notes & task management for individuals, with instant team workspace collaboration.
               </p>
               <div className="grid grid-cols-2 gap-6 w-full max-w-md">
                 <div className="bg-white/20 backdrop-blur-sm p-6 rounded-2xl">
@@ -116,7 +124,7 @@ const SignupPage = () => {
                 </div>
                 <div className="bg-white/20 backdrop-blur-sm p-6 rounded-2xl">
                   <div className="text-3xl mb-2">👥</div>
-                  <div className="font-semibold">Team Collaboration</div>
+                  <div className="font-semibold">Team Workspace Invites</div>
                 </div>
                 <div className="bg-white/20 backdrop-blur-sm p-6 rounded-2xl">
                   <div className="text-3xl mb-2">⭐</div>
@@ -126,13 +134,15 @@ const SignupPage = () => {
             </div>
           </div>
 
+          {/* Right Form Container */}
           <div className="bg-white p-8 md:p-12 rounded-3xl shadow-2xl border border-slate-100">
             <div className="mb-8">
               <h2 className="text-3xl font-bold text-slate-900 mb-2">Create your account</h2>
-              <p className="text-slate-600">Start your free 14-day trial today</p>
+              <p className="text-slate-600">Start managing your individual and team workspaces today</p>
             </div>
 
             <form onSubmit={handleSubmit} className="space-y-5">
+              {/* Full Name */}
               <div className="relative">
                 <input
                   type="text"
@@ -148,6 +158,7 @@ const SignupPage = () => {
                 </label>
               </div>
 
+              {/* Email Address */}
               <div className="relative">
                 <input
                   type="email"
@@ -163,6 +174,7 @@ const SignupPage = () => {
                 </label>
               </div>
 
+              {/* Password */}
               <div className="relative">
                 <input
                   type="password"
@@ -182,7 +194,15 @@ const SignupPage = () => {
                 <div className="space-y-2">
                   <div className="flex items-center justify-between text-sm">
                     <span className="text-slate-600">Password strength</span>
-                    <span className={`font-medium ${passwordStrength.score <= 1 ? 'text-red-600' : passwordStrength.score === 2 ? 'text-yellow-600' : 'text-emerald-600'}`}>
+                    <span
+                      className={`font-medium ${
+                        passwordStrength.score <= 1
+                          ? 'text-red-600'
+                          : passwordStrength.score === 2
+                          ? 'text-yellow-600'
+                          : 'text-emerald-600'
+                      }`}
+                    >
                       {passwordStrength.label}
                     </span>
                   </div>
@@ -195,6 +215,7 @@ const SignupPage = () => {
                 </div>
               )}
 
+              {/* Confirm Password */}
               <div className="relative">
                 <input
                   type="password"
@@ -213,6 +234,7 @@ const SignupPage = () => {
                 )}
               </div>
 
+              {/* Terms Checkbox */}
               <label className="flex items-start space-x-3 cursor-pointer">
                 <input
                   type="checkbox"
@@ -228,12 +250,14 @@ const SignupPage = () => {
                 </span>
               </label>
 
+              {/* API Error Notification */}
               {apiError && (
                 <div className="bg-red-50 border border-red-200 text-red-700 text-sm rounded-xl px-4 py-3">
                   {apiError}
                 </div>
               )}
 
+              {/* Submit Button */}
               <button
                 type="submit"
                 disabled={isLoading}

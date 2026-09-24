@@ -13,6 +13,7 @@ import ProjectsPage from '../../pages/workspace/ProjectsPage';
 import FilesPage from '../../pages/workspace/FilesPage';
 import ActivityLogsPage from '../../pages/workspace/ActivityLogsPage';
 import WorkspaceSettingsPage from '../../pages/workspace/WorkspaceSettingsPage';
+import WorkspaceAnalyticsPage from '../../pages/workspace/WorkspaceAnalyticsPage';
 
 interface MenuItem {
   icon: string;
@@ -22,6 +23,7 @@ interface MenuItem {
 
 const workspaceMenuItems: MenuItem[] = [
   { icon: '📊', label: 'Team Overview', path: '' },
+  { icon: '📈', label: 'Analytics & Reports', path: 'analytics' },
   { icon: '📝', label: 'Shared Notes', path: 'notes' },
   { icon: '✅', label: 'Team Tasks', path: 'tasks' },
   { icon: '📁', label: 'Projects', path: 'projects' },
@@ -169,6 +171,8 @@ const WorkspaceLayout = () => {
           <div className="flex-1 p-6 overflow-y-auto">
             <Routes>
               <Route index element={<WorkspaceOverviewPage />} />
+              <Route path="analytics" element={<WorkspaceAnalyticsPage />} />
+              <Route path="reports" element={<WorkspaceAnalyticsPage />} />
               <Route path="notes" element={<SharedNotesPage />} />
               <Route path="tasks" element={<TeamTasksPage />} />
               <Route path="projects" element={<ProjectsPage />} />
