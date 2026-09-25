@@ -83,7 +83,7 @@ export const login = async (data: { email: string; password: string }) => {
     throw new Error('Invalid email or password');
   }
 
-  await prisma.securitylog.create({
+  await prisma.securityLog.create({
     data: {
       id: randomUUID(),
       userId: user.id,
@@ -180,7 +180,7 @@ export const loginWithGoogle = async (data: { credential: string; clientId?: str
     });
   }
 
-  await prisma.securitylog.create({
+  await prisma.securityLog.create({
     data: {
       id: randomUUID(),
       userId: user.id,
