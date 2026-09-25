@@ -1,6 +1,7 @@
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { AppProvider } from './lib/context/AppContext';
 import ProtectedRoute from './components/auth/ProtectedRoute';
+import AdminRoute from './components/auth/AdminRoute';
 import LandingPage from './pages/LandingPage';
 import LoginPage from './pages/LoginPage';
 import SignupPage from './pages/SignupPage';
@@ -46,7 +47,9 @@ function App() {
             path="/admin/*"
             element={
               <ProtectedRoute>
-                <AdminLayout />
+                <AdminRoute>
+                  <AdminLayout />
+                </AdminRoute>
               </ProtectedRoute>
             }
           />

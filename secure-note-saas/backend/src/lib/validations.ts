@@ -12,6 +12,11 @@ export const loginSchema = z.object({
   password: z.string().min(1, 'Password is required'),
 });
 
+export const googleAuthSchema = z.object({
+  credential: z.string().min(1, 'Google credential (idToken) is required'),
+  clientId: z.string().optional(),
+});
+
 export const noteSchema = z.object({
   title: z.string().min(1, 'Title is required'),
   content: z.string().default(''),

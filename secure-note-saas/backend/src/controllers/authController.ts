@@ -44,3 +44,16 @@ export const getCurrentUser = async (req: AuthRequest, res: Response) => {
     res.status(400).json({ message: formatErrorMessage(error) });
   }
 };
+
+export const googleAuth = async (req: Request, res: Response) => {
+  try {
+    const result = await authService.loginWithGoogle(req.body);
+    res.json(result);
+  } catch (error: any) {
+    logRequestError('POST /api/auth/google', error, {
+      hasCredential: Boolean(req.body?.credential),
+      clientId: req.body?.clientId,
+    });
+    res.status(400).json({ message: formatErrorMessage(error) });
+  }
+};

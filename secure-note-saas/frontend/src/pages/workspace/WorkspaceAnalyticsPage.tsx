@@ -47,7 +47,7 @@ const WorkspaceAnalyticsPage = () => {
                 name: m.userFullName || m.name || m.userName || m.email || 'Team Member',
                 notes: 0,
                 tasks: 0,
-                score: 100,
+                score: 0,
               }))
             );
           } else {
@@ -167,17 +167,9 @@ const WorkspaceAnalyticsPage = () => {
         <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
           <h3 className="text-lg font-semibold text-slate-900 mb-4">Weekly Workspace Activity</h3>
           <div className="space-y-3">
-            {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((day, idx) => (
-              <div key={idx} className="flex items-center gap-3">
-                <span className="text-sm text-slate-500 w-12">{day}</span>
-                <div className="flex-1 bg-slate-100 rounded-full h-6 overflow-hidden">
-                  <div 
-                    className="bg-gradient-to-r from-indigo-500 to-emerald-500 h-full rounded-full"
-                    style={{ width: `${idx === 0 ? 30 : 5}%` }}
-                  />
-                </div>
-              </div>
-            ))}
+            <div className="p-6 text-center text-xs text-slate-400">
+              Weekly activity data not available yet.
+            </div>
           </div>
         </div>
       </div>
