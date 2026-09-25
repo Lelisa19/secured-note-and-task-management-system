@@ -15,39 +15,9 @@ const CalendarPage = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedDateForModal, setSelectedDateForModal] = useState<string>('');
 
-  // Default initial events
-  const [events, setEvents] = useState<CalendarEvent[]>([
-    {
-      id: 1,
-      title: 'Team Standup',
-      date: `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-15`,
-      time: '10:00 AM',
-      category: 'Team Meeting',
-      color: 'from-indigo-500 to-indigo-600',
-    },
-    {
-      id: 2,
-      title: 'Design Review',
-      date: `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-18`,
-      time: '2:00 PM',
-      category: 'Design & Code Review',
-      color: 'from-emerald-500 to-emerald-600',
-    },
-    {
-      id: 3,
-      title: 'Project Deadline',
-      date: `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-22`,
-      time: '5:00 PM',
-      category: 'Project Deadline',
-      color: 'from-amber-500 to-amber-600',
-    },
-  ]);
+  const [events, setEvents] = useState<CalendarEvent[]>([]);
 
-  const [upcomingReminders, setUpcomingReminders] = useState([
-    { id: 1, title: 'Submit quarterly report', due: 'Today, 3:00 PM' },
-    { id: 2, title: 'Team sync & demo', due: 'Tomorrow, 10:00 AM' },
-    { id: 3, title: 'Review workspace tasks', due: 'Friday, 2:00 PM' },
-  ]);
+  const [upcomingReminders, setUpcomingReminders] = useState<{ id: number; title: string; due: string }[]>([]);
 
   // Calendar calculations
   const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();

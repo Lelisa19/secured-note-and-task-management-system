@@ -19,12 +19,7 @@ const ReportsPage = () => {
     { label: 'Custom Range', value: 'Custom Range' },
   ];
 
-  const stats = [
-    { label: 'Total Revenue', value: '$118,000', change: '+12.5%', color: 'from-emerald-500 to-emerald-600', icon: '💰' },
-    { label: 'Active Users', value: '11,256', change: '+8.2%', color: 'from-blue-500 to-blue-600', icon: '👥' },
-    { label: 'New Workspaces', value: '1,110', change: '+5.1%', color: 'from-purple-500 to-purple-600', icon: '🏢' },
-    { label: 'Conversion Rate', value: '4.2%', change: '+1.1%', color: 'from-orange-500 to-orange-600', icon: '📈' },
-  ];
+  const stats: { label: string; value: string; change: string; color: string; icon: string }[] = [];
 
   return (
     <div className="space-y-6">
@@ -46,20 +41,30 @@ const ReportsPage = () => {
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-        {stats.map((stat, idx) => (
-          <div key={idx} className="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm">
-            <div className="flex items-center justify-between mb-4">
-              <div className={`w-10 h-10 bg-gradient-to-br ${stat.color} rounded-xl flex items-center justify-center text-white text-lg`}>
-                {stat.icon}
+        {stats.length === 0 ? (
+          <>
+            {[1, 2, 3, 4].map((n) => (
+              <div key={n} className="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm flex items-center justify-center">
+                <p className="text-xs text-slate-400">No KPI data</p>
               </div>
-              <span className="text-sm font-medium text-emerald-600">
-                {stat.change}
-              </span>
+            ))}
+          </>
+        ) : (
+          stats.map((stat, idx) => (
+            <div key={idx} className="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm">
+              <div className="flex items-center justify-between mb-4">
+                <div className={`w-10 h-10 bg-gradient-to-br ${stat.color} rounded-xl flex items-center justify-center text-white text-lg`}>
+                  {stat.icon}
+                </div>
+                <span className="text-sm font-medium text-emerald-600">
+                  {stat.change}
+                </span>
+              </div>
+              <h3 className="text-slate-500 text-sm font-medium mb-1">{stat.label}</h3>
+              <p className="text-2xl font-bold text-slate-900">{stat.value}</p>
             </div>
-            <h3 className="text-slate-500 text-sm font-medium mb-1">{stat.label}</h3>
-            <p className="text-2xl font-bold text-slate-900">{stat.value}</p>
-          </div>
-        ))}
+          ))
+        )}
       </div>
 
       <div className="bg-white rounded-2xl border border-slate-200 shadow-sm">
@@ -110,47 +115,18 @@ const ReportsPage = () => {
             <div className="bg-slate-50 rounded-xl p-6">
               <h3 className="text-lg font-semibold text-slate-900 mb-4">Top Workspaces</h3>
               <div className="space-y-3">
-                {[
-                  { name: 'Acme Corp HQ', revenue: '$12,450', growth: '+12%' },
-                  { name: 'Startup Inc', revenue: '$8,230', growth: '+8%' },
-                  { name: 'Dev Team', revenue: '$6,120', growth: '+5%' },
-                  { name: 'Design Studio', revenue: '$4,890', growth: '+3%' },
-                  { name: 'Research Group', revenue: '$3,450', growth: '+2%' },
-                ].map((item, idx) => (
-                  <div key={idx} className="flex items-center justify-between p-3 bg-white rounded-lg">
-                    <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 bg-gradient-to-br from-indigo-500 to-indigo-600 rounded-lg flex items-center justify-center text-white font-bold text-sm">
-                        {idx + 1}
-                      </div>
-                      <span className="font-medium text-slate-900">{item.name}</span>
-                    </div>
-                    <div className="text-right">
-                      <p className="font-semibold text-slate-900">{item.revenue}</p>
-                      <p className="text-xs text-emerald-600">{item.growth}</p>
-                    </div>
-                  </div>
-                ))}
+                <div className="p-8 text-center text-xs text-slate-400">
+                  No workspace ranking data yet.
+                </div>
               </div>
             </div>
 
             <div className="bg-slate-50 rounded-xl p-6">
               <h3 className="text-lg font-semibold text-slate-900 mb-4">User Activity</h3>
               <div className="space-y-3">
-                {[
-                  { metric: 'Daily Active Users', value: '2,847', change: '+156' },
-                  { metric: 'New Signups', value: '412', change: '+56' },
-                  { metric: 'Notes Created', value: '12,847', change: '+1,234' },
-                  { metric: 'Tasks Completed', value: '8,521', change: '+987' },
-                  { metric: 'Workspace Invites', value: '356', change: '+45' },
-                ].map((item, idx) => (
-                  <div key={idx} className="flex items-center justify-between p-3 bg-white rounded-lg">
-                    <span className="text-slate-700">{item.metric}</span>
-                    <div className="text-right">
-                      <p className="font-semibold text-slate-900">{item.value}</p>
-                      <p className="text-xs text-emerald-600">{item.change}</p>
-                    </div>
-                  </div>
-                ))}
+                <div className="p-8 text-center text-xs text-slate-400">
+                  No activity summary yet.
+                </div>
               </div>
             </div>
           </div>
@@ -161,25 +137,9 @@ const ReportsPage = () => {
         <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
           <h3 className="text-lg font-semibold text-slate-900 mb-4">Revenue by Plan</h3>
           <div className="space-y-4">
-            {[
-              { plan: 'Enterprise', percentage: 45, color: 'bg-purple-500' },
-              { plan: 'Business', percentage: 30, color: 'bg-blue-500' },
-              { plan: 'Pro', percentage: 20, color: 'bg-indigo-500' },
-              { plan: 'Free', percentage: 5, color: 'bg-slate-400' },
-            ].map((item, idx) => (
-              <div key={idx}>
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-sm font-medium text-slate-700">{item.plan}</span>
-                  <span className="text-sm text-slate-600">{item.percentage}%</span>
-                </div>
-                <div className="w-full bg-slate-200 rounded-full h-2">
-                  <div 
-                    className={`h-2 rounded-full ${item.color}`}
-                    style={{ width: `${item.percentage}%` }}
-                  ></div>
-                </div>
-              </div>
-            ))}
+            <div className="p-4 text-center text-xs text-slate-400">
+              Plan revenue breakdown not available yet.
+            </div>
           </div>
         </div>
 
@@ -193,9 +153,10 @@ const ReportsPage = () => {
               { name: 'Feature Usage Stats', icon: '🎯' },
               { name: 'Churn Analysis', icon: '📉' },
             ].map((report, idx) => (
-              <button 
+              <button
                 key={idx}
                 className="w-full flex items-center gap-3 px-4 py-3 bg-slate-50 hover:bg-slate-100 rounded-xl transition-colors text-left"
+                onClick={() => { alert('Report generation not yet wired in the backend.'); }}
               >
                 <span className="text-xl">{report.icon}</span>
                 <span className="font-medium text-slate-900">{report.name}</span>
@@ -213,9 +174,10 @@ const ReportsPage = () => {
               { format: 'Excel Spreadsheet', icon: '📋', description: 'Formatted Excel file' },
               { format: 'JSON Export', icon: '📝', description: 'API-compatible JSON' },
             ].map((option, idx) => (
-              <button 
+              <button
                 key={idx}
                 className="w-full flex items-center gap-3 px-4 py-3 border border-slate-200 hover:border-indigo-300 hover:bg-indigo-50 rounded-xl transition-colors text-left"
+                onClick={() => { alert('Export not yet wired in the backend.'); }}
               >
                 <span className="text-xl">{option.icon}</span>
                 <div>

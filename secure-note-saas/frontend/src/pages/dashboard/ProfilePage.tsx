@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { apiRequest } from '../../lib/api';
+import { useAppContext } from '../../lib/context/AppContext';
 
 interface UserProfile {
   fullName: string;
@@ -11,6 +12,7 @@ interface UserProfile {
 }
 
 const ProfilePage = () => {
+  const { user: contextUser, refreshUser } = useAppContext();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
@@ -21,8 +23,8 @@ const ProfilePage = () => {
     { label: 'Collaborations', value: 0 },
   ]);
   const [form, setForm] = useState<UserProfile>({
-    fullName: '',
-    email: '',
+    fullName: contextUser?.fullName || '',
+    email: contextUser?.email || '',
     bio: '',
     avatarUrl: null,
     twitterUrl: '',
@@ -38,19 +40,27 @@ const ProfilePage = () => {
     setLoading(true);
     setMessage(null);
     try {
-      const user = localStorage.getItem('user');
-      if (user) {
-        const parsed = JSON.parse(user);
-        setForm(f => ({
-          ...f,
-          fullName: parsed.fullName || f.fullName,
-          email: parsed.email || f.email,
-          bio: parsed.bio || f.bio,
-          avatarUrl: parsed.avatarUrl || f.avatarUrl,
-          twitterUrl: parsed.twitterUrl || f.twitterUrl,
-          githubUrl: parsed.githubUrl || f.githubUrl,
-        }));
+      let source: UserProfile | null = null;
+      try {
+        source = await apiRequest<UserProfile>('/auth/me');
+      } catch {
+        try {
+          await refreshUser();
+        } catch {
+          // ignore — use context if available
+        }
       }
+
+      const preferred: Partial<UserProfile> = {
+        fullName: source?.fullName || contextUser?.fullName || '',
+        email: source?.email || contextUser?.email || '',
+        bio: (source as any)?.bio ?? '',
+        avatarUrl: (source as any)?.avatarUrl ?? null,
+        twitterUrl: (source as any)?.twitterUrl ?? '',
+        githubUrl: (source as any)?.githubUrl ?? '',
+      };
+
+      setForm((f) => ({ ...f, ...preferred }));
 
       try {
         const dash = await apiRequest('/dashboard/stats');
@@ -71,7 +81,7 @@ const ProfilePage = () => {
     }
   };
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => { load(); }, [contextUser?.id]);
 
   const onChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
@@ -97,6 +107,7 @@ const ProfilePage = () => {
       const stored = JSON.parse(localStorage.getItem('user') || '{}');
       const merged = { ...stored, ...updated, ...payload, email: form.email };
       localStorage.setItem('user', JSON.stringify(merged));
+      try { await refreshUser(); } catch { /* ignore */ }
       setMessage({ type: 'success', text: 'Profile saved successfully!' });
       setTimeout(() => setMessage(null), 4000);
     } catch (e: any) {

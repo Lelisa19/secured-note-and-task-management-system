@@ -7,6 +7,7 @@ const router = express.Router();
 router.get('/organizations', authController.searchOrganizations);
 router.post('/register', authController.register);
 router.post('/login', authController.login);
+router.post('/google', authController.googleAuth);
 router.get('/me', authenticate, authController.getCurrentUser);
 
 export default router;

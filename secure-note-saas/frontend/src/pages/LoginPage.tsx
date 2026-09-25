@@ -1,6 +1,8 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { apiRequest } from '../lib/api';
+import useGoogleSignIn from '../lib/useGoogleSignIn';
+import type { GoogleSignInResult } from '../lib/useGoogleSignIn';
 
 const LoginPage = () => {
   const navigate = useNavigate();
@@ -10,6 +12,34 @@ const LoginPage = () => {
   const [rememberMe, setRememberMe] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [apiError, setApiError] = useState<string | null>(null);
+
+  const onGoogleSuccess = async (data: GoogleSignInResult, rememberMe: boolean) => {
+    const authStorage = rememberMe ? localStorage : sessionStorage;
+    authStorage.setItem('token', data.token);
+    authStorage.setItem('user', JSON.stringify(data.user));
+    if (rememberMe) {
+      sessionStorage.removeItem('token');
+      sessionStorage.removeItem('user');
+    } else {
+      localStorage.removeItem('token');
+      localStorage.removeItem('user');
+    }
+    if (data.user?.role === 'ADMIN') {
+      navigate('/admin');
+    } else {
+      navigate('/dashboard');
+    }
+  };
+
+  const google = useGoogleSignIn({
+    onSuccess: onGoogleSuccess,
+    onError: (msg) => setApiError(msg),
+    mode: 'button',
+  });
+
+  useEffect(() => {
+    google.rememberGoogleRemember(rememberMe);
+  }, [rememberMe, google]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -30,7 +60,11 @@ const LoginPage = () => {
         localStorage.removeItem('token');
         localStorage.removeItem('user');
       }
-      navigate('/dashboard');
+      if (data.user?.role === 'ADMIN') {
+        navigate('/admin');
+      } else {
+        navigate('/dashboard');
+      }
     } catch (error: any) {
       setApiError(error.message || 'Login failed');
     } finally {
@@ -39,7 +73,11 @@ const LoginPage = () => {
   };
 
   const handleSocialUnavailable = (provider: string) => {
-    alert(`${provider} sign-in is coming soon. Please use email & password for now.`);
+    if (provider === 'Google') {
+      google.triggerPopup();
+      return;
+    }
+    alert(`${provider} sign-in is coming soon. Please use email & password or Google for now.`);
   };
 
   return (
@@ -135,14 +173,9 @@ const LoginPage = () => {
               </div>
 
               <div className="grid grid-cols-2 gap-4">
-                <button
-                  type="button"
-                  onClick={() => handleSocialUnavailable('Google')}
-                  className="flex items-center justify-center py-4 bg-white border border-slate-200 rounded-xl hover:bg-slate-50 transition-colors"
-                >
-                  <span className="mr-2 text-xl">G</span>
-                  <span className="font-medium text-slate-700">Google</span>
-                </button>
+                <div className="flex items-center justify-center">
+                  <div ref={google.buttonRef} className="w-full flex items-center justify-center" />
+                </div>
                 <button
                   type="button"
                   onClick={() => handleSocialUnavailable('GitHub')}

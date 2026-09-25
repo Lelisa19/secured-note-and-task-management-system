@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
 import { useAppContext } from '../../lib/context/AppContext';
 import { ContextSwitcher } from './ContextSwitcher';
@@ -65,6 +65,18 @@ const DashboardLayout = () => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isInviteModalOpen, setIsInviteModalOpen] = useState(false);
+  const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const userMenuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const onClick = (e: MouseEvent) => {
+      if (userMenuRef.current && !userMenuRef.current.contains(e.target as Node)) {
+        setUserMenuOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', onClick);
+    return () => document.removeEventListener('mousedown', onClick);
+  }, []);
 
   if (loading) {
     return (
@@ -242,8 +254,74 @@ const DashboardLayout = () => {
               )}
             </button>
 
-            <div className="w-9 h-9 bg-gradient-to-br from-indigo-500 to-emerald-500 rounded-full flex items-center justify-center text-white font-bold text-sm">
-              {user ? getInitials(user.fullName) : 'U'}
+            <div className="relative" ref={userMenuRef}>
+              <button
+                onClick={() => setUserMenuOpen((o) => !o)}
+                className="flex items-center gap-2 pl-1 pr-2 py-1 hover:bg-slate-50 rounded-xl transition-colors"
+                aria-haspopup="menu"
+                aria-expanded={userMenuOpen}
+              >
+                <div className="w-9 h-9 bg-gradient-to-br from-indigo-500 to-emerald-500 rounded-full flex items-center justify-center text-white font-bold text-sm shadow-sm">
+                  {user ? getInitials(user.fullName) : 'U'}
+                </div>
+                <span className="text-slate-400 text-xs hidden sm:inline">▾</span>
+              </button>
+
+              {userMenuOpen && (
+                <div
+                  role="menu"
+                  className="absolute right-0 mt-2 w-64 bg-white rounded-2xl shadow-lg border border-slate-200 py-2 z-50"
+                >
+                  <div className="px-4 py-3 border-b border-slate-100">
+                    <div className="text-sm font-semibold text-slate-900 truncate">
+                      {user?.fullName || 'User'}
+                    </div>
+                    <div className="text-xs text-slate-500 truncate">{user?.email}</div>
+                  </div>
+                  {personalMenuItems.map((item) => (
+                    <button
+                      key={item.path}
+                      role="menuitem"
+                      onClick={() => {
+                        setUserMenuOpen(false);
+                        navigate(item.path);
+                      }}
+                      className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50 transition-colors text-left"
+                    >
+                      <span>{item.icon}</span>
+                      <span>{item.label}</span>
+                    </button>
+                  ))}
+                  {user?.role === 'ADMIN' && (
+                    <>
+                      <div className="my-1 border-t border-slate-100"></div>
+                      <button
+                        role="menuitem"
+                        onClick={() => {
+                          setUserMenuOpen(false);
+                          navigate('/admin');
+                        }}
+                        className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-indigo-700 hover:bg-indigo-50 transition-colors text-left font-semibold"
+                      >
+                        <span>🛡️</span>
+                        <span>Open Super Admin Panel</span>
+                      </button>
+                    </>
+                  )}
+                  <div className="my-1 border-t border-slate-100"></div>
+                  <button
+                    role="menuitem"
+                    onClick={() => {
+                      setUserMenuOpen(false);
+                      logout();
+                    }}
+                    className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 transition-colors text-left"
+                  >
+                    <span>🚪</span>
+                    <span>Logout</span>
+                  </button>
+                </div>
+              )}
             </div>
           </div>
         </header>

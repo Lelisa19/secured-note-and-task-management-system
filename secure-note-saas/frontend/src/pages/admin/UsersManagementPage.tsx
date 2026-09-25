@@ -1,17 +1,31 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { apiRequest } from '../../lib/api';
 
-interface User {
-  id: number;
-  name: string;
-  email: string;
-  role: 'Admin' | 'Pro User' | 'Free User';
-  status: 'active' | 'suspended';
-  joined: string;
-  workspaces: number;
+interface AdminUserSubscription {
+  id?: string;
+  plan?: string;
+  isActive?: boolean;
+  startDate?: string;
+}
+
+interface AdminUserCounts {
   notes: number;
-  tasks: number;
-  lastActive: string;
-  subscription: string;
+  createdTasks: number;
+  ownedWorkspaces: number;
+}
+
+interface AdminUser {
+  id: string;
+  email: string;
+  fullName: string;
+  avatar?: string | null;
+  role: 'USER' | 'ADMIN';
+  isVerified: boolean;
+  twoFactorEnabled: boolean;
+  createdAt: string;
+  updatedAt: string;
+  subscription?: AdminUserSubscription | null;
+  _count: AdminUserCounts;
 }
 
 interface Stat {
@@ -22,76 +36,148 @@ interface Stat {
   icon: string;
 }
 
-const UsersManagementPage = () => {
-  const [users, setUsers] = useState<User[]>([
-    { id: 1, name: 'John Doe', email: 'john@example.com', role: 'Admin', status: 'active', joined: 'Jan 15, 2024', workspaces: 5, notes: 42, tasks: 18, lastActive: '2 minutes ago', subscription: 'Enterprise' },
-    { id: 2, name: 'Sarah Miller', email: 'sarah@example.com', role: 'Pro User', status: 'active', joined: 'Feb 20, 2024', workspaces: 3, notes: 28, tasks: 12, lastActive: '15 minutes ago', subscription: 'Pro' },
-    { id: 3, name: 'Mike Johnson', email: 'mike@example.com', role: 'Free User', status: 'suspended', joined: 'Mar 10, 2024', workspaces: 1, notes: 15, tasks: 5, lastActive: '3 days ago', subscription: 'Free' },
-    { id: 4, name: 'Emily Davis', email: 'emily@example.com', role: 'Pro User', status: 'active', joined: 'Apr 05, 2024', workspaces: 4, notes: 35, tasks: 22, lastActive: '1 hour ago', subscription: 'Pro' },
-    { id: 5, name: 'David Wilson', email: 'david@example.com', role: 'Free User', status: 'active', joined: 'May 12, 2024', workspaces: 1, notes: 8, tasks: 3, lastActive: '5 hours ago', subscription: 'Free' },
-    { id: 6, name: 'Jessica Brown', email: 'jessica@example.com', role: 'Admin', status: 'active', joined: 'Jun 01, 2024', workspaces: 6, notes: 50, tasks: 30, lastActive: 'Just now', subscription: 'Enterprise' },
-    { id: 7, name: 'Chris Lee', email: 'chris@example.com', role: 'Pro User', status: 'active', joined: 'Jul 03, 2024', workspaces: 2, notes: 20, tasks: 10, lastActive: '1 day ago', subscription: 'Pro' },
-    { id: 8, name: 'Amanda Taylor', email: 'amanda@example.com', role: 'Free User', status: 'active', joined: 'Aug 10, 2024', workspaces: 1, notes: 12, tasks: 4, lastActive: '2 days ago', subscription: 'Free' },
-  ]);
+const fmtDate = (d?: string | null) => {
+  if (!d) return '—';
+  try {
+    return new Date(d).toLocaleDateString();
+  } catch {
+    return String(d);
+  }
+};
 
-  const [stats] = useState<Stat[]>([
-    { label: 'Total Users', value: '12,847', change: '+234', color: 'from-indigo-500 to-indigo-600', icon: '👥' },
-    { label: 'Active Users', value: '11,256', change: '+189', color: 'from-emerald-500 to-emerald-600', icon: '✅' },
-    { label: 'New This Week', value: '412', change: '+56', color: 'from-purple-500 to-purple-600', icon: '🎉' },
-    { label: 'Suspended', value: '152', change: '-8', color: 'from-amber-500 to-amber-600', icon: '🚫' },
-  ]);
+const fmtAgo = (d?: string | null) => {
+  if (!d) return '—';
+  try {
+    const diff = Date.now() - new Date(d).getTime();
+    const s = Math.floor(diff / 1000);
+    if (s < 60) return `${s}s ago`;
+    const m = Math.floor(s / 60);
+    if (m < 60) return `${m}m ago`;
+    const h = Math.floor(m / 60);
+    if (h < 24) return `${h}h ago`;
+    const days = Math.floor(h / 24);
+    return `${days}d ago`;
+  } catch {
+    return '—';
+  }
+};
+
+const UsersManagementPage = () => {
+  const [users, setUsers] = useState<AdminUser[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [actingId, setActingId] = useState<string | null>(null);
 
   const [searchQuery, setSearchQuery] = useState('');
   const [roleFilter, setRoleFilter] = useState<string>('All Roles');
   const [statusFilter, setStatusFilter] = useState<string>('All Status');
   const [currentPage, setCurrentPage] = useState(1);
-  const [selectedUser, setSelectedUser] = useState<User | null>(null);
+  const [selectedUser, setSelectedUser] = useState<AdminUser | null>(null);
   const usersPerPage = 6;
 
-  const filteredUsers = users.filter(user => {
-    const matchesSearch = user.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
-                         user.email.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesRole = roleFilter === 'All Roles' || user.role === roleFilter;
-    const matchesStatus = statusFilter === 'All Status' || user.status === statusFilter;
+  async function load() {
+    try {
+      setLoading(true);
+      setError(null);
+      const res = await apiRequest('/admin/users');
+      setUsers(Array.isArray(res) ? res : []);
+    } catch (e: any) {
+      setError(e?.message || 'Failed to load users');
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    load();
+  }, []);
+
+  const totalUsers = users.length;
+  const activeUsers = users.filter((u) => u.isVerified).length;
+  const suspended = 0;
+  const newThisWeek = users.filter((u) => {
+    const cutoff = Date.now() - 7 * 24 * 60 * 60 * 1000;
+    return new Date(u.createdAt).getTime() >= cutoff;
+  }).length;
+
+  const stats: Stat[] = [
+    { label: 'Total Users', value: totalUsers.toLocaleString(), change: `+${newThisWeek}`, color: 'from-indigo-500 to-indigo-600', icon: '👥' },
+    { label: 'Verified Users', value: activeUsers.toLocaleString(), change: `+${activeUsers}`, color: 'from-emerald-500 to-emerald-600', icon: '✅' },
+    { label: 'New This Week', value: newThisWeek.toLocaleString(), change: `+${newThisWeek}`, color: 'from-purple-500 to-purple-600', icon: '🎉' },
+    { label: 'Suspended', value: suspended.toLocaleString(), change: `-${suspended}`, color: 'from-amber-500 to-amber-600', icon: '🚫' },
+  ];
+
+  const filteredUsers = users.filter((user) => {
+    const matchesSearch = user.fullName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      user.email.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesRole = roleFilter === 'All Roles' ||
+      (roleFilter === 'Admin' && user.role === 'ADMIN') ||
+      (roleFilter === 'Free User' && user.role === 'USER') ||
+      (roleFilter === 'Pro User' && user.role === 'USER');
+    const matchesStatus = statusFilter === 'All Status' ||
+      (statusFilter === 'active' && user.isVerified) ||
+      (statusFilter === 'suspended' && !user.isVerified);
     return matchesSearch && matchesRole && matchesStatus;
   });
 
   const indexOfLastUser = currentPage * usersPerPage;
   const indexOfFirstUser = indexOfLastUser - usersPerPage;
   const currentUsers = filteredUsers.slice(indexOfFirstUser, indexOfLastUser);
-  const totalPages = Math.ceil(filteredUsers.length / usersPerPage);
+  const totalPages = Math.max(1, Math.ceil(filteredUsers.length / usersPerPage));
 
-  const toggleUserStatus = (userId: number) => {
-    setUsers(users.map((user) => {
-      if (user.id === userId) {
-        return { ...user, status: user.status === 'active' ? 'suspended' : 'active' };
-      }
-      return user;
-    }));
+  const getInitials = (name: string) => {
+    if (!name) return 'U';
+    const parts = name.trim().split(/\s+/);
+    return ((parts[0]?.[0] || '') + (parts[1]?.[0] || '')).toUpperCase() || name[0].toUpperCase();
+  };
+
+  const displayRole = (role: string, plan?: string) => {
+    if (role === 'ADMIN') return 'Admin';
+    if (plan === 'PRO' || plan === 'BUSINESS' || plan === 'ENTERPRISE') return 'Pro User';
+    return 'Free User';
+  };
+
+  const handleRoleChange = async (user: AdminUser, newRole: 'USER' | 'ADMIN') => {
+    try {
+      setActingId(user.id);
+      await apiRequest(`/admin/users/${user.id}/role`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ role: newRole }),
+      });
+      setUsers((prev) => prev.map((u) => (u.id === user.id ? { ...u, role: newRole } : u)));
+    } catch (e: any) {
+      alert(e?.message || 'Failed to update role');
+    } finally {
+      setActingId(null);
+    }
   };
 
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">Users Management</h1>
-          <p className="text-slate-600">Manage all users across the SecureFlow platform</p>
+          <h1 className="text-2xl font-bold text-slate-900">User Management</h1>
+          <p className="text-slate-600">View, search, and manage all platform users</p>
         </div>
-        <button className="px-4 py-2 bg-gradient-to-r from-indigo-600 to-indigo-700 text-white rounded-xl font-medium hover:from-indigo-700 hover:to-indigo-800 transition-all shadow-lg shadow-indigo-500/25">
-          + Add User
-        </button>
+        <div className="flex gap-3">
+          <button
+            onClick={load}
+            className="px-4 py-2 bg-white border border-slate-200 rounded-xl text-slate-700 font-medium hover:bg-slate-50 transition-colors flex items-center gap-2"
+          >
+            {loading ? '⏳' : '🔄'} Refresh
+          </button>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
         {stats.map((stat, idx) => (
           <div key={idx} className="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm">
             <div className="flex items-center justify-between mb-4">
-              <div className={`w-10 h-10 bg-gradient-to-br ${stat.color} rounded-xl flex items-center justify-center text-white text-lg`}>
+              <div className={`w-12 h-12 bg-gradient-to-br ${stat.color} rounded-xl flex items-center justify-center text-white text-2xl`}>
                 {stat.icon}
               </div>
-              <span className={`text-sm font-medium ${stat.change.startsWith('+') ? 'text-emerald-600' : 'text-slate-600'}`}>
-                {stat.change}
-              </span>
+              <span className="text-emerald-600 text-sm font-medium bg-emerald-50 px-2 py-1 rounded-lg">{stat.change}</span>
             </div>
             <h3 className="text-slate-500 text-sm font-medium mb-1">{stat.label}</h3>
             <p className="text-2xl font-bold text-slate-900">{stat.value}</p>
@@ -99,259 +185,225 @@ const UsersManagementPage = () => {
         ))}
       </div>
 
-      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm">
-        <div className="p-6 border-b border-slate-200">
-          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-            <div className="flex flex-col sm:flex-row gap-3 flex-1">
-              <div className="flex items-center gap-2 px-4 py-2 bg-slate-50 rounded-xl flex-1 sm:flex-none sm:w-80">
-                <span className="text-slate-400">🔍</span>
-                <input 
-                  type="text" 
-                  placeholder="Search users..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="bg-transparent border-none outline-none flex-1 text-slate-700"
-                />
-              </div>
-              <select 
-                value={roleFilter}
-                onChange={(e) => setRoleFilter(e.target.value)}
-                className="px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-slate-700 outline-none"
-              >
-                <option>All Roles</option>
-                <option>Admin</option>
-                <option>Pro User</option>
-                <option>Free User</option>
-              </select>
-              <select 
-                value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value)}
-                className="px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-slate-700 outline-none"
-              >
-                <option>All Status</option>
-                <option>Active</option>
-                <option>Suspended</option>
-              </select>
+      {error && (
+        <div className="bg-red-50 border border-red-200 text-red-700 text-sm rounded-xl px-4 py-3">
+          ⚠️ {error}
+        </div>
+      )}
+
+      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+          <div className="flex flex-col sm:flex-row gap-3 flex-1">
+            <div className="flex items-center gap-2 px-4 py-2 bg-slate-50 rounded-xl flex-1 sm:flex-none sm:w-80">
+              <span className="text-slate-400">🔍</span>
+              <input
+                type="text"
+                placeholder="Search users..."
+                value={searchQuery}
+                onChange={(e) => { setSearchQuery(e.target.value); setCurrentPage(1); }}
+                className="bg-transparent border-none outline-none flex-1 text-slate-700"
+              />
             </div>
-            <button className="px-4 py-2 bg-white border border-slate-200 rounded-xl text-slate-700 font-medium hover:bg-slate-50 transition-colors">
-              Export
-            </button>
-          </div>
-        </div>
-
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead className="bg-slate-50">
-              <tr>
-                <th className="text-left px-6 py-4 text-sm font-semibold text-slate-700">User</th>
-                <th className="text-left px-6 py-4 text-sm font-semibold text-slate-700">Role</th>
-                <th className="text-left px-6 py-4 text-sm font-semibold text-slate-700">Status</th>
-                <th className="text-left px-6 py-4 text-sm font-semibold text-slate-700">Joined</th>
-                <th className="text-left px-6 py-4 text-sm font-semibold text-slate-700">Activity</th>
-                <th className="text-left px-6 py-4 text-sm font-semibold text-slate-700">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100">
-              {currentUsers.map((user) => (
-                <tr key={user.id} className="hover:bg-slate-50 transition-colors">
-                  <td className="px-6 py-4">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 bg-gradient-to-br from-indigo-500 to-indigo-600 rounded-full flex items-center justify-center text-white font-bold text-sm">
-                        {user.name.split(' ').map(n => n[0]).join('')}
-                      </div>
-                      <div>
-                        <p className="font-medium text-slate-900">{user.name}</p>
-                        <p className="text-sm text-slate-500">{user.email}</p>
-                      </div>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4">
-                    <span className={`px-3 py-1 rounded-full text-xs font-medium ${
-                      user.role === 'Admin' ? 'bg-purple-100 text-purple-700' :
-                      user.role === 'Pro User' ? 'bg-indigo-100 text-indigo-700' :
-                      'bg-slate-100 text-slate-700'
-                    }`}>
-                      {user.role}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4">
-                    <span className={`px-3 py-1 rounded-full text-xs font-medium flex items-center gap-1.5 w-fit ${
-                      user.status === 'active' ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'
-                    }`}>
-                      <div className={`w-1.5 h-1.5 rounded-full ${
-                        user.status === 'active' ? 'bg-emerald-500' : 'bg-red-500'
-                      }`}></div>
-                      {user.status.charAt(0).toUpperCase() + user.status.slice(1)}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 text-sm text-slate-600">{user.joined}</td>
-                  <td className="px-6 py-4">
-                    <div className="text-sm">
-                      <p className="text-slate-700"><span className="font-medium">{user.workspaces}</span> workspaces</p>
-                      <p className="text-slate-500 text-xs">{user.notes} notes · {user.tasks} tasks</p>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4">
-                    <div className="flex items-center gap-2">
-                      <button 
-                        onClick={() => setSelectedUser(user)}
-                        className="p-2 text-slate-500 hover:bg-slate-100 rounded-lg transition-colors"
-                      >
-                        👁️
-                      </button>
-                      <button className="p-2 text-slate-500 hover:bg-slate-100 rounded-lg transition-colors">
-                        ✏️
-                      </button>
-                      <button 
-                        onClick={() => toggleUserStatus(user.id)}
-                        className={`p-2 rounded-lg transition-colors ${
-                          user.status === 'active' 
-                            ? 'text-amber-600 hover:bg-amber-50' 
-                            : 'text-emerald-600 hover:bg-emerald-50'
-                        }`}
-                      >
-                        {user.status === 'active' ? '🚫' : '✅'}
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-
-        <div className="p-6 border-t border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <p className="text-sm text-slate-500">
-            Showing {indexOfFirstUser + 1}-{Math.min(indexOfLastUser, filteredUsers.length)} of {filteredUsers.length} users
-          </p>
-          <div className="flex items-center gap-2">
-            <button 
-              disabled={currentPage === 1}
-              onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
-              className="px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-slate-700 text-sm hover:bg-slate-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            <select
+              value={roleFilter}
+              onChange={(e) => { setRoleFilter(e.target.value); setCurrentPage(1); }}
+              className="px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-slate-700 outline-none"
             >
-              Previous
-            </button>
-            {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-              let pageNum = i + 1;
-              if (totalPages > 5 && currentPage > 3) {
-                pageNum = currentPage - 2 + i;
-                if (pageNum > totalPages) pageNum = totalPages - (4 - i);
-              }
-              return (
-                <button 
-                  key={pageNum}
-                  onClick={() => setCurrentPage(pageNum)}
-                  className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
-                    currentPage === pageNum 
-                      ? 'bg-gradient-to-r from-indigo-600 to-indigo-700 text-white' 
-                      : 'bg-white border border-slate-200 text-slate-700 hover:bg-slate-50'
-                  }`}
-                >
-                  {pageNum}
-                </button>
-              );
-            })}
-            {totalPages > 5 && <span className="text-slate-400">...</span>}
-            <button 
-              disabled={currentPage === totalPages}
-              onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
-              className="px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-slate-700 text-sm hover:bg-slate-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              <option>All Roles</option>
+              <option>Admin</option>
+              <option>Pro User</option>
+              <option>Free User</option>
+            </select>
+            <select
+              value={statusFilter}
+              onChange={(e) => { setStatusFilter(e.target.value); setCurrentPage(1); }}
+              className="px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-slate-700 outline-none"
             >
-              Next
-            </button>
+              <option>All Status</option>
+              <option value="active">Active</option>
+              <option value="suspended">Suspended</option>
+            </select>
           </div>
         </div>
       </div>
 
+      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+        <div className="overflow-x-auto">
+          {loading ? (
+            <div className="p-12 text-center text-slate-500">Loading users…</div>
+          ) : filteredUsers.length === 0 ? (
+            <div className="p-12 text-center text-slate-500">
+              {searchQuery || roleFilter !== 'All Roles' || statusFilter !== 'All Status'
+                ? 'No users match your filters.'
+                : 'No users yet.'}
+            </div>
+          ) : (
+            <table className="w-full">
+              <thead className="bg-slate-50 border-b border-slate-200">
+                <tr>
+                  <th className="text-left px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">User</th>
+                  <th className="text-left px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">Role</th>
+                  <th className="text-left px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">Status</th>
+                  <th className="text-left px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">Joined</th>
+                  <th className="text-left px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">Activity</th>
+                  <th className="text-left px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">Last Active</th>
+                  <th className="text-right px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {currentUsers.map((user) => {
+                  const plan = user.subscription?.plan || 'FREE';
+                  return (
+                    <tr key={user.id} className="hover:bg-slate-50 transition-colors">
+                      <td className="px-6 py-4">
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 rounded-full bg-gradient-to-br from-indigo-500 to-emerald-500 flex items-center justify-center text-white font-bold text-sm">
+                            {getInitials(user.fullName)}
+                          </div>
+                          <div className="min-w-0">
+                            <button
+                              onClick={() => setSelectedUser(user)}
+                              className="font-medium text-slate-900 truncate text-left hover:text-indigo-600"
+                            >
+                              {user.fullName}
+                            </button>
+                            <p className="text-sm text-slate-500 truncate">{user.email}</p>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-6 py-4">
+                        <span className={`px-3 py-1 rounded-full text-xs font-medium ${
+                          user.role === 'ADMIN'
+                            ? 'bg-purple-100 text-purple-700'
+                            : plan === 'FREE'
+                            ? 'bg-slate-100 text-slate-700'
+                            : 'bg-indigo-100 text-indigo-700'
+                        }`}>
+                          {displayRole(user.role, plan)}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4">
+                        <span className={`px-3 py-1 rounded-full text-xs font-medium ${
+                          user.isVerified ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'
+                        }`}>
+                          {user.isVerified ? 'active' : 'unverified'}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 text-sm text-slate-600">{fmtDate(user.createdAt)}</td>
+                      <td className="px-6 py-4">
+                        <div className="flex items-center gap-4 text-xs text-slate-500">
+                          <span>🏢 {user._count.ownedWorkspaces}</span>
+                          <span>📝 {user._count.notes}</span>
+                          <span>✅ {user._count.createdTasks}</span>
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 text-sm text-slate-600">{fmtAgo(user.updatedAt)}</td>
+                      <td className="px-6 py-4 text-right whitespace-nowrap">
+                        {actingId === user.id ? (
+                          <span className="text-xs text-slate-400">saving…</span>
+                        ) : user.role === 'ADMIN' ? (
+                          <button
+                            onClick={() => handleRoleChange(user, 'USER')}
+                            className="px-3 py-1.5 text-xs font-medium rounded-lg bg-amber-100 text-amber-700 hover:bg-amber-200 transition-colors"
+                          >
+                            Demote to User
+                          </button>
+                        ) : (
+                          <button
+                            onClick={() => handleRoleChange(user, 'ADMIN')}
+                            className="px-3 py-1.5 text-xs font-medium rounded-lg bg-purple-100 text-purple-700 hover:bg-purple-200 transition-colors"
+                          >
+                            Promote to Admin
+                          </button>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          )}
+        </div>
+
+        {!loading && filteredUsers.length > 0 && (
+          <div className="px-6 py-4 border-t border-slate-100 flex items-center justify-between">
+            <span className="text-sm text-slate-600">
+              Showing {indexOfFirstUser + 1}–{Math.min(indexOfLastUser, filteredUsers.length)} of {filteredUsers.length}
+            </span>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                disabled={currentPage === 1}
+                className="px-3 py-1.5 text-sm border border-slate-200 rounded-lg text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+              >
+                Previous
+              </button>
+              <span className="text-sm text-slate-600">
+                Page {currentPage} of {totalPages}
+              </span>
+              <button
+                onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                disabled={currentPage === totalPages}
+                className="px-3 py-1.5 text-sm border border-slate-200 rounded-lg text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+              >
+                Next
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+
       {selectedUser && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={() => setSelectedUser(null)}>
-          <div className="bg-white rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+          <div className="bg-white rounded-2xl max-w-lg w-full max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
             <div className="p-6 border-b border-slate-200 flex items-center justify-between">
-              <h2 className="text-xl font-bold text-slate-900">User Profile</h2>
-              <button onClick={() => setSelectedUser(null)} className="p-2 text-slate-400 hover:bg-slate-100 rounded-lg transition-colors">
-                ✕
-              </button>
+              <h2 className="text-xl font-bold text-slate-900">User Details</h2>
+              <button onClick={() => setSelectedUser(null)} className="p-2 text-slate-400 hover:bg-slate-100 rounded-lg">✕</button>
             </div>
-            <div className="p-6">
-              <div className="flex items-center gap-4 mb-6">
-                <div className="w-20 h-20 bg-gradient-to-br from-indigo-500 to-indigo-600 rounded-full flex items-center justify-center text-white font-bold text-2xl">
-                  {selectedUser.name.split(' ').map(n => n[0]).join('')}
+            <div className="p-6 space-y-4">
+              <div className="flex items-center gap-4">
+                <div className="w-16 h-16 rounded-full bg-gradient-to-br from-indigo-500 to-emerald-500 flex items-center justify-center text-white font-bold text-xl">
+                  {getInitials(selectedUser.fullName)}
                 </div>
                 <div>
-                  <h3 className="text-2xl font-bold text-slate-900">{selectedUser.name}</h3>
-                  <p className="text-slate-600">{selectedUser.email}</p>
-                  <div className="flex items-center gap-2 mt-2">
-                    <span className={`px-3 py-1 rounded-full text-xs font-medium ${
-                      selectedUser.role === 'Admin' ? 'bg-purple-100 text-purple-700' :
-                      selectedUser.role === 'Pro User' ? 'bg-indigo-100 text-indigo-700' :
-                      'bg-slate-100 text-slate-700'
-                    }`}>
-                      {selectedUser.role}
-                    </span>
-                    <span className={`px-3 py-1 rounded-full text-xs font-medium flex items-center gap-1.5 ${
-                      selectedUser.status === 'active' ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'
-                    }`}>
-                      <div className={`w-1.5 h-1.5 rounded-full ${
-                        selectedUser.status === 'active' ? 'bg-emerald-500' : 'bg-red-500'
-                      }`}></div>
-                      {selectedUser.status.charAt(0).toUpperCase() + selectedUser.status.slice(1)}
-                    </span>
-                  </div>
+                  <h3 className="text-lg font-semibold text-slate-900">{selectedUser.fullName}</h3>
+                  <p className="text-slate-500">{selectedUser.email}</p>
                 </div>
               </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-                <div className="bg-slate-50 rounded-xl p-4">
-                  <p className="text-sm text-slate-500 mb-1">Subscription</p>
-                  <p className="text-lg font-semibold text-slate-900">{selectedUser.subscription}</p>
+              <dl className="grid grid-cols-2 gap-4 text-sm">
+                <div>
+                  <dt className="text-slate-500">Role</dt>
+                  <dd className="font-medium text-slate-900">{selectedUser.role}</dd>
                 </div>
-                <div className="bg-slate-50 rounded-xl p-4">
-                  <p className="text-sm text-slate-500 mb-1">Joined</p>
-                  <p className="text-lg font-semibold text-slate-900">{selectedUser.joined}</p>
+                <div>
+                  <dt className="text-slate-500">Plan</dt>
+                  <dd className="font-medium text-slate-900">{selectedUser.subscription?.plan || 'FREE'}</dd>
                 </div>
-                <div className="bg-slate-50 rounded-xl p-4">
-                  <p className="text-sm text-slate-500 mb-1">Last Active</p>
-                  <p className="text-lg font-semibold text-slate-900">{selectedUser.lastActive}</p>
+                <div>
+                  <dt className="text-slate-500">Verified</dt>
+                  <dd className="font-medium text-slate-900">{selectedUser.isVerified ? 'Yes' : 'No'}</dd>
                 </div>
-                <div className="bg-slate-50 rounded-xl p-4">
-                  <p className="text-sm text-slate-500 mb-1">Workspaces</p>
-                  <p className="text-lg font-semibold text-slate-900">{selectedUser.workspaces}</p>
+                <div>
+                  <dt className="text-slate-500">2FA Enabled</dt>
+                  <dd className="font-medium text-slate-900">{selectedUser.twoFactorEnabled ? 'Yes' : 'No'}</dd>
                 </div>
-              </div>
-
-              <div className="border-t border-slate-200 pt-6">
-                <h4 className="font-semibold text-slate-900 mb-4">Activity Summary</h4>
-                <div className="grid grid-cols-3 gap-4">
-                  <div className="text-center p-4 bg-slate-50 rounded-xl">
-                    <p className="text-3xl font-bold text-indigo-600">{selectedUser.notes}</p>
-                    <p className="text-sm text-slate-500">Notes</p>
-                  </div>
-                  <div className="text-center p-4 bg-slate-50 rounded-xl">
-                    <p className="text-3xl font-bold text-emerald-600">{selectedUser.tasks}</p>
-                    <p className="text-sm text-slate-500">Tasks</p>
-                  </div>
-                  <div className="text-center p-4 bg-slate-50 rounded-xl">
-                    <p className="text-3xl font-bold text-purple-600">{selectedUser.workspaces}</p>
-                    <p className="text-sm text-slate-500">Workspaces</p>
-                  </div>
+                <div>
+                  <dt className="text-slate-500">Joined</dt>
+                  <dd className="font-medium text-slate-900">{fmtDate(selectedUser.createdAt)}</dd>
                 </div>
-              </div>
-            </div>
-            <div className="p-6 border-t border-slate-200 flex gap-3">
-              <button 
-                onClick={() => toggleUserStatus(selectedUser.id)}
-                className={`flex-1 px-4 py-2 rounded-xl font-medium transition-colors ${
-                  selectedUser.status === 'active' 
-                    ? 'bg-amber-100 text-amber-700 hover:bg-amber-200' 
-                    : 'bg-emerald-100 text-emerald-700 hover:bg-emerald-200'
-                }`}
-              >
-                {selectedUser.status === 'active' ? 'Suspend User' : 'Activate User'}
-              </button>
-              <button className="flex-1 px-4 py-2 bg-slate-100 text-slate-700 rounded-xl font-medium hover:bg-slate-200 transition-colors">
-                Edit Profile
-              </button>
+                <div>
+                  <dt className="text-slate-500">Workspaces Owned</dt>
+                  <dd className="font-medium text-slate-900">{selectedUser._count.ownedWorkspaces}</dd>
+                </div>
+                <div>
+                  <dt className="text-slate-500">Notes</dt>
+                  <dd className="font-medium text-slate-900">{selectedUser._count.notes}</dd>
+                </div>
+                <div>
+                  <dt className="text-slate-500">Tasks Created</dt>
+                  <dd className="font-medium text-slate-900">{selectedUser._count.createdTasks}</dd>
+                </div>
+              </dl>
             </div>
           </div>
         </div>

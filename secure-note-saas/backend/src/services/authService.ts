@@ -1,7 +1,10 @@
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
+import { OAuth2Client } from 'google-auth-library';
 import prisma from '../lib/prisma.js';
-import { registerSchema, loginSchema } from '../lib/validations.js';
+import { registerSchema, loginSchema, googleAuthSchema } from '../lib/validations.js';
+
+const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID || '');
 
 export const searchOrganizations = async (query?: string) => {
   const searchFilter = query && query.trim().length > 0
@@ -99,6 +102,84 @@ export const getCurrentUser = async (userId: string) => {
   }
 
   return sanitizeUser(user);
+};
+
+export const loginWithGoogle = async (data: { credential: string; clientId?: string }) => {
+  const validated = googleAuthSchema.parse(data);
+  const expectedAudience = process.env.GOOGLE_CLIENT_ID || validated.clientId;
+
+  if (!expectedAudience) {
+    throw new Error('GOOGLE_CLIENT_ID is not configured on the server');
+  }
+
+  let ticket;
+  try {
+    ticket = await googleClient.verifyIdToken({
+      idToken: validated.credential,
+      audience: expectedAudience,
+    });
+  } catch (err: any) {
+    throw new Error(`Invalid Google credential: ${err?.message || 'verification failed'}`);
+  }
+
+  const payload = ticket.getPayload();
+  if (!payload || !payload.email || !payload.email_verified) {
+    throw new Error('Google account does not have a verified email');
+  }
+
+  const email = payload.email.toLowerCase();
+  const fullName = payload.name || payload.email.split('@')[0];
+  const avatar = payload.picture || null;
+
+  let isNewUser = false;
+  let user = await prisma.user.findUnique({
+    where: { email },
+  });
+
+  if (!user) {
+    isNewUser = true;
+    const randomPassword =
+      'google-oauth::' +
+      Buffer.from(crypto.getRandomValues(new Uint8Array(32))).toString('base64');
+    const hashedPassword = await bcrypt.hash(randomPassword, 12);
+
+    user = await prisma.user.create({
+      data: {
+        email,
+        password: hashedPassword,
+        fullName,
+        avatar,
+        isVerified: true,
+      },
+    });
+
+    await prisma.subscription.create({
+      data: {
+        userId: user.id,
+        plan: 'FREE',
+      },
+    });
+  } else if (!user.avatar && avatar) {
+    user = await prisma.user.update({
+      where: { id: user.id },
+      data: { avatar, isVerified: true },
+    });
+  } else if (!user.isVerified) {
+    user = await prisma.user.update({
+      where: { id: user.id },
+      data: { isVerified: true },
+    });
+  }
+
+  await prisma.securityLog.create({
+    data: {
+      userId: user.id,
+      action: 'LOGIN_GOOGLE',
+    },
+  });
+
+  const token = generateToken(user);
+  return { user: sanitizeUser(user), token, isNewUser };
 };
 
 const generateToken = (user: any) => {
