@@ -1,10 +1,16 @@
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
+<<<<<<< HEAD
+=======
+import { randomUUID } from 'node:crypto';
+>>>>>>> 2aed3a1 (Initial commit)
 import { OAuth2Client } from 'google-auth-library';
 import prisma from '../lib/prisma.js';
 import { registerSchema, loginSchema, googleAuthSchema } from '../lib/validations.js';
 
 const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID || '');
+
+const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
 export const searchOrganizations = async (query?: string) => {
   const searchFilter = query && query.trim().length > 0
@@ -38,19 +44,24 @@ export const register = async (data: { fullName: string; email: string; password
   }
 
   const hashedPassword = await bcrypt.hash(validated.password, 12);
+  const now = new Date();
 
   const user = await prisma.user.create({
     data: {
+      id: randomUUID(),
       email: validated.email,
       password: hashedPassword,
       fullName: validated.fullName,
+      updatedAt: now,
     },
   });
 
   await prisma.subscription.create({
     data: {
+      id: randomUUID(),
       userId: user.id,
       plan: 'FREE',
+      updatedAt: now,
     },
   });
 
@@ -77,8 +88,9 @@ export const login = async (data: { email: string; password: string }) => {
     throw new Error('Invalid email or password');
   }
 
-  await prisma.securityLog.create({
+  await prisma.securitylog.create({
     data: {
+      id: randomUUID(),
       userId: user.id,
       action: 'LOGIN',
     },
@@ -87,6 +99,59 @@ export const login = async (data: { email: string; password: string }) => {
   const token = generateToken(user);
 
   return { user: sanitizeUser(user), token };
+};
+
+export const loginWithGoogle = async (credential: string) => {
+  const clientId = process.env.GOOGLE_CLIENT_ID;
+  if (!clientId) {
+    throw new Error('Google sign-in is not configured');
+  }
+
+  const ticket = await googleClient.verifyIdToken({
+    idToken: credential,
+    audience: clientId,
+  });
+  const payload = ticket.getPayload();
+
+  if (!payload?.email || !payload.email_verified || !payload.sub) {
+    throw new Error('Google account email could not be verified');
+  }
+
+  const now = new Date();
+  let user = await prisma.user.findUnique({ where: { email: payload.email } });
+
+  if (!user) {
+    user = await prisma.user.create({
+      data: {
+        id: randomUUID(),
+        email: payload.email,
+        password: randomUUID(),
+        fullName: payload.name || payload.email.split('@')[0],
+        avatar: payload.picture || null,
+        isVerified: true,
+        updatedAt: now,
+      },
+    });
+
+    await prisma.subscription.create({
+      data: {
+        id: randomUUID(),
+        userId: user.id,
+        plan: 'FREE',
+        updatedAt: now,
+      },
+    });
+  }
+
+  await prisma.securitylog.create({
+    data: {
+      id: randomUUID(),
+      userId: user.id,
+      action: 'GOOGLE_LOGIN',
+    },
+  });
+
+  return { user: sanitizeUser(user), token: generateToken(user) };
 };
 
 export const getCurrentUser = async (userId: string) => {

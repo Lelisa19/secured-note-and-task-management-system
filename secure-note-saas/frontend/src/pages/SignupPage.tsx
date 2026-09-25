@@ -1,5 +1,6 @@
-import { useState } from 'react';
+import { useCallback, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { GoogleLogin, type CredentialResponse } from '@react-oauth/google';
 import { apiRequest } from '../lib/api';
 
 interface FormData {
@@ -103,6 +104,33 @@ const SignupPage = () => {
   const handleSocialUnavailable = (provider: string) => {
     alert(`${provider} sign-up is coming soon. Please use email & password for now.`);
   };
+
+  const handleGoogleSuccess = useCallback(async ({ credential }: CredentialResponse) => {
+    if (!credential) {
+      setApiError('Google sign-up did not return a valid credential');
+      return;
+    }
+
+    setApiError(null);
+    setIsLoading(true);
+    try {
+      const data = await apiRequest('/auth/google', {
+        method: 'POST',
+        body: JSON.stringify({ credential }),
+      });
+      localStorage.setItem('token', data.token);
+      localStorage.setItem('user', JSON.stringify(data.user));
+      navigate('/dashboard');
+    } catch (error: any) {
+      setApiError(error.message || 'Google sign-up failed');
+    } finally {
+      setIsLoading(false);
+    }
+  }, [navigate]);
+
+  const handleGoogleError = useCallback(() => {
+    setApiError('Google sign-up failed');
+  }, []);
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 via-indigo-50 to-emerald-50 p-4 py-12">
@@ -287,14 +315,20 @@ const SignupPage = () => {
               </div>
 
               <div className="grid grid-cols-2 gap-4">
-                <button
-                  type="button"
-                  onClick={() => handleSocialUnavailable('Google')}
-                  className="flex items-center justify-center py-4 bg-white border border-slate-200 rounded-xl hover:bg-slate-50 transition-colors"
-                >
-                  <span className="mr-2 text-xl">G</span>
-                  <span className="font-medium text-slate-700">Google</span>
-                </button>
+                {import.meta.env.VITE_GOOGLE_CLIENT_ID ? (
+                  <div className="flex items-center justify-center py-2 bg-white border border-slate-200 rounded-xl">
+                    <GoogleLogin onSuccess={handleGoogleSuccess} onError={handleGoogleError} />
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => handleSocialUnavailable('Google')}
+                    className="flex items-center justify-center py-4 bg-white border border-slate-200 rounded-xl hover:bg-slate-50 transition-colors"
+                  >
+                    <span className="mr-2 text-xl">G</span>
+                    <span className="font-medium text-slate-700">Google</span>
+                  </button>
+                )}
                 <button
                   type="button"
                   onClick={() => handleSocialUnavailable('GitHub')}

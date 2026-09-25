@@ -1,12 +1,17 @@
+import { Link } from 'react-router-dom';
+
 const Footer = () => {
   return (
     <footer className="bg-slate-900 text-white py-16 px-4 sm:px-6 lg:px-8">
       <div className="max-w-7xl mx-auto">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-12">
           <div>
-            <span className="text-2xl font-bold bg-gradient-to-r from-indigo-400 to-emerald-400 bg-clip-text text-transparent">
+            <Link
+              to="/"
+              className="text-2xl font-bold bg-gradient-to-r from-indigo-400 to-emerald-400 bg-clip-text text-transparent"
+            >
               SecureFlow
-            </span>
+            </Link>
             <p className="mt-4 text-slate-400">
               The most secure way to organize your notes, tasks, and collaboration.
             </p>

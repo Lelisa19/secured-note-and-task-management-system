@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import prisma from '../lib/prisma.js';
 import { workspaceSchema, projectSchema } from '../lib/validations.js';
 
@@ -48,7 +49,7 @@ export const getWorkspaces = async (userId: string) => {
       OR: [
         { ownerId: userId },
         {
-          members: {
+          workspacemember: {
             some: {
               userId,
               isActive: true,
@@ -58,10 +59,10 @@ export const getWorkspaces = async (userId: string) => {
       ],
     },
     include: {
-      owner: {
+      user: {
         select: { id: true, fullName: true, email: true, avatar: true },
       },
-      members: {
+      workspacemember: {
         include: {
           user: {
             select: { id: true, fullName: true, email: true, avatar: true },
@@ -69,11 +70,15 @@ export const getWorkspaces = async (userId: string) => {
         },
       },
       _count: {
-        select: { notes: true, tasks: true, projects: true, members: true },
+        select: { note: true, task: true, project: true, workspacemember: true },
       },
     },
     orderBy: { createdAt: 'desc' },
-  });
+  }).then((workspaces) => workspaces.map((workspace) => ({
+    ...workspace,
+    owner: workspace.user,
+    members: workspace.workspacemember,
+  })));
 };
 
 export const getInvitations = async (userId: string) => {
@@ -81,7 +86,7 @@ export const getInvitations = async (userId: string) => {
   if (!user) return [];
 
   // Find workspace memberships where isActive is false
-  return await prisma.workspaceMember.findMany({
+  return await prisma.workspacemember.findMany({
     where: {
       userId,
       isActive: false,
@@ -89,7 +94,7 @@ export const getInvitations = async (userId: string) => {
     include: {
       workspace: {
         include: {
-          owner: {
+          user: {
             select: { id: true, fullName: true, email: true },
           },
         },
@@ -99,7 +104,7 @@ export const getInvitations = async (userId: string) => {
 };
 
 export const acceptInvitation = async (membershipId: string, userId: string) => {
-  const membership = await prisma.workspaceMember.findFirst({
+  const membership = await prisma.workspacemember.findFirst({
     where: { id: membershipId, userId },
   });
 
@@ -107,7 +112,7 @@ export const acceptInvitation = async (membershipId: string, userId: string) => 
     throw new Error('Invitation not found');
   }
 
-  const updated = await prisma.workspaceMember.update({
+  const updated = await prisma.workspacemember.update({
     where: { id: membershipId },
     data: { isActive: true },
     include: { workspace: true },
@@ -115,6 +120,7 @@ export const acceptInvitation = async (membershipId: string, userId: string) => 
 
   await prisma.activity.create({
     data: {
+      id: randomUUID(),
       userId,
       workspaceId: membership.workspaceId,
       action: 'JOIN_WORKSPACE',
@@ -127,7 +133,7 @@ export const acceptInvitation = async (membershipId: string, userId: string) => 
 };
 
 export const rejectInvitation = async (membershipId: string, userId: string) => {
-  const membership = await prisma.workspaceMember.findFirst({
+  const membership = await prisma.workspacemember.findFirst({
     where: { id: membershipId, userId },
   });
 
@@ -135,7 +141,7 @@ export const rejectInvitation = async (membershipId: string, userId: string) => 
     throw new Error('Invitation not found');
   }
 
-  await prisma.workspaceMember.delete({
+  await prisma.workspacemember.delete({
     where: { id: membershipId },
   });
 
@@ -149,7 +155,7 @@ export const getWorkspaceById = async (workspaceId: string, userId: string) => {
       OR: [
         { ownerId: userId },
         {
-          members: {
+          workspacemember: {
             some: {
               userId,
               isActive: true,
@@ -159,19 +165,19 @@ export const getWorkspaceById = async (workspaceId: string, userId: string) => {
       ],
     },
     include: {
-      owner: {
+      user: {
         select: { id: true, fullName: true, email: true, avatar: true },
       },
-      members: {
+      workspacemember: {
         include: {
           user: {
             select: { id: true, fullName: true, email: true, avatar: true },
           },
         },
       },
-      projects: true,
+      project: true,
       _count: {
-        select: { notes: true, tasks: true, projects: true, members: true, files: true },
+        select: { note: true, task: true, project: true, workspacemember: true, file: true },
       },
     },
   });
@@ -180,33 +186,45 @@ export const getWorkspaceById = async (workspaceId: string, userId: string) => {
     throw new Error('Workspace not found or access denied');
   }
 
-  return workspace;
+  return {
+    ...workspace,
+    owner: workspace.user,
+    members: workspace.workspacemember,
+    projects: workspace.project,
+  };
 };
 
 export const createWorkspace = async (data: { name: string; description?: string; logo?: string }, userId: string) => {
   const validated = workspaceSchema.parse(data);
+  const now = new Date();
 
   const workspace = await prisma.workspace.create({
     data: {
+      id: randomUUID(),
       name: validated.name,
       description: validated.description || '',
       logo: data.logo || null,
       ownerId: userId,
-      roles: {
-        create: DEFAULT_ROLES,
+      updatedAt: now,
+      role: {
+        create: DEFAULT_ROLES.map((role) => ({
+          ...role,
+          id: randomUUID(),
+        })),
       },
-      members: {
+      workspacemember: {
         create: {
+          id: randomUUID(),
           userId,
           isActive: true,
         },
       },
     },
     include: {
-      owner: {
+      user: {
         select: { id: true, fullName: true, email: true },
       },
-      members: {
+      workspacemember: {
         include: {
           user: {
             select: { id: true, fullName: true, email: true },
@@ -216,8 +234,15 @@ export const createWorkspace = async (data: { name: string; description?: string
     },
   });
 
+  const response = {
+    ...workspace,
+    owner: workspace.user,
+    members: workspace.workspacemember,
+  };
+
   await prisma.activity.create({
     data: {
+      id: randomUUID(),
       userId,
       workspaceId: workspace.id,
       action: 'CREATE_WORKSPACE',
@@ -226,7 +251,7 @@ export const createWorkspace = async (data: { name: string; description?: string
     },
   });
 
-  return workspace;
+  return response;
 };
 
 export const inviteMember = async (workspaceId: string, email: string, userId: string) => {
@@ -246,7 +271,7 @@ export const inviteMember = async (workspaceId: string, email: string, userId: s
     throw new Error('User with this email not found');
   }
 
-  const existing = await prisma.workspaceMember.findUnique({
+  const existing = await prisma.workspacemember.findUnique({
     where: {
       workspaceId_userId: {
         workspaceId,
@@ -263,8 +288,9 @@ export const inviteMember = async (workspaceId: string, email: string, userId: s
     }
   }
 
-  const membership = await prisma.workspaceMember.create({
+  const membership = await prisma.workspacemember.create({
     data: {
+      id: randomUUID(),
       workspaceId,
       userId: targetUser.id,
       isActive: false, // Pending
@@ -278,6 +304,7 @@ export const inviteMember = async (workspaceId: string, email: string, userId: s
 
   await prisma.notification.create({
     data: {
+      id: randomUUID(),
       userId: targetUser.id,
       title: 'Workspace Invitation',
       message: `You have been invited to join ${workspace.name}`,
@@ -301,7 +328,7 @@ export const removeMember = async (workspaceId: string, memberUserId: string, cu
     throw new Error('Owner cannot remove self from workspace');
   }
 
-  await prisma.workspaceMember.deleteMany({
+  await prisma.workspacemember.deleteMany({
     where: {
       workspaceId,
       userId: memberUserId,
@@ -316,15 +343,18 @@ export const createProject = async (workspaceId: string, data: any, userId: stri
 
   const project = await prisma.project.create({
     data: {
+      id: randomUUID(),
       name: validated.name,
       description: validated.description || '',
       workspaceId,
       status: 'ACTIVE',
+      updatedAt: new Date(),
     },
   });
 
   await prisma.activity.create({
     data: {
+      id: randomUUID(),
       userId,
       workspaceId,
       action: 'CREATE_PROJECT',
@@ -379,7 +409,7 @@ export const getWorkspaceProjects = async (workspaceId: string, userId: string) 
   return await prisma.project.findMany({
     where: { workspaceId },
     include: {
-      _count: { select: { tasks: true } },
+      _count: { select: { task: true } },
     },
     orderBy: { createdAt: 'desc' },
   });
@@ -421,7 +451,7 @@ export const getWorkspaceRoles = async (workspaceId: string, userId: string) => 
   const roles = await prisma.role.findMany({
     where: { workspaceId },
     include: {
-      _count: { select: { members: true } },
+      _count: { select: { workspacemember: true } },
     },
     orderBy: { createdAt: 'asc' },
   });
@@ -430,7 +460,7 @@ export const getWorkspaceRoles = async (workspaceId: string, userId: string) => 
     id: role.id,
     name: role.name,
     permissions: JSON.parse(role.permissions),
-    memberCount: role._count.members,
+    memberCount: role._count.workspacemember,
     createdAt: role.createdAt,
   }));
 };
@@ -450,6 +480,7 @@ export const createWorkspaceRole = async (
 
   return await prisma.role.create({
     data: {
+      id: randomUUID(),
       name: data.name,
       permissions: JSON.stringify(data.permissions),
       workspaceId,
@@ -463,7 +494,7 @@ export const getWorkspaceFiles = async (workspaceId: string, userId: string) => 
   return await prisma.file.findMany({
     where: { workspaceId },
     include: {
-      uploader: {
+      user: {
         select: { id: true, fullName: true, email: true, avatar: true },
       },
     },
@@ -480,6 +511,7 @@ export const createWorkspaceFile = async (
 
   const file = await prisma.file.create({
     data: {
+      id: randomUUID(),
       name: data.name,
       path: data.path,
       size: data.size,
@@ -488,7 +520,7 @@ export const createWorkspaceFile = async (
       uploadedBy: userId,
     },
     include: {
-      uploader: {
+      user: {
         select: { id: true, fullName: true, email: true, avatar: true },
       },
     },
@@ -496,6 +528,7 @@ export const createWorkspaceFile = async (
 
   await prisma.activity.create({
     data: {
+      id: randomUUID(),
       userId,
       workspaceId,
       action: 'UPLOAD_FILE',

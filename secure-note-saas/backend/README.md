@@ -37,7 +37,7 @@ A secure, RESTful backend API for managing notes, tasks, and workspaces.
 
 3. Set up environment variables
    - Copy `.env.example` to `.env`
-   - Update the database URL and JWT secret
+   - Update the database URL, JWT secret, and `GOOGLE_CLIENT_ID`
    ```bash
    cp .env.example .env
    ```
@@ -70,6 +70,7 @@ Authorization: Bearer YOUR_TOKEN
 #### Auth
 - `POST /auth/register` - Register a new user
 - `POST /auth/login` - Login a user
+- `POST /auth/google` - Verify a Google ID token and sign in or register the user
 - `GET /auth/me` - Get current user
 
 #### Notes

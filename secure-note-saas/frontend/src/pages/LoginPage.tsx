@@ -1,5 +1,10 @@
+<<<<<<< HEAD
 import { useState, useEffect } from 'react';
+=======
+import { useCallback, useState } from 'react';
+>>>>>>> 2aed3a1 (Initial commit)
 import { Link, useNavigate } from 'react-router-dom';
+import { GoogleLogin, type CredentialResponse } from '@react-oauth/google';
 import { apiRequest } from '../lib/api';
 import useGoogleSignIn from '../lib/useGoogleSignIn';
 import type { GoogleSignInResult } from '../lib/useGoogleSignIn';
@@ -79,6 +84,41 @@ const LoginPage = () => {
     }
     alert(`${provider} sign-in is coming soon. Please use email & password or Google for now.`);
   };
+
+  const handleGoogleSuccess = useCallback(async ({ credential }: CredentialResponse) => {
+    if (!credential) {
+      setApiError('Google sign-in did not return a valid credential');
+      return;
+    }
+
+    setApiError(null);
+    setIsLoading(true);
+    try {
+      const data = await apiRequest('/auth/google', {
+        method: 'POST',
+        body: JSON.stringify({ credential }),
+      });
+      const authStorage = rememberMe ? localStorage : sessionStorage;
+      authStorage.setItem('token', data.token);
+      authStorage.setItem('user', JSON.stringify(data.user));
+      if (rememberMe) {
+        sessionStorage.removeItem('token');
+        sessionStorage.removeItem('user');
+      } else {
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+      }
+      navigate('/dashboard');
+    } catch (error: any) {
+      setApiError(error.message || 'Google sign-in failed');
+    } finally {
+      setIsLoading(false);
+    }
+  }, [navigate, rememberMe]);
+
+  const handleGoogleError = useCallback(() => {
+    setApiError('Google sign-in failed');
+  }, []);
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 via-indigo-50 to-emerald-50 p-4">
@@ -173,9 +213,26 @@ const LoginPage = () => {
               </div>
 
               <div className="grid grid-cols-2 gap-4">
+<<<<<<< HEAD
                 <div className="flex items-center justify-center">
                   <div ref={google.buttonRef} className="w-full flex items-center justify-center" />
                 </div>
+=======
+                {import.meta.env.VITE_GOOGLE_CLIENT_ID ? (
+                  <div className="flex items-center justify-center py-2 bg-white border border-slate-200 rounded-xl">
+                    <GoogleLogin onSuccess={handleGoogleSuccess} onError={handleGoogleError} />
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => handleSocialUnavailable('Google')}
+                    className="flex items-center justify-center py-4 bg-white border border-slate-200 rounded-xl hover:bg-slate-50 transition-colors"
+                  >
+                    <span className="mr-2 text-xl">G</span>
+                    <span className="font-medium text-slate-700">Google</span>
+                  </button>
+                )}
+>>>>>>> 2aed3a1 (Initial commit)
                 <button
                   type="button"
                   onClick={() => handleSocialUnavailable('GitHub')}

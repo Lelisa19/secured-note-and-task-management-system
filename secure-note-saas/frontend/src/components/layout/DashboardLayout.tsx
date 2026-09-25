@@ -1,5 +1,10 @@
+<<<<<<< HEAD
 import { useEffect, useRef, useState } from 'react';
 import { Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
+=======
+import { useState } from 'react';
+import { Routes, Route, Navigate, Link, useNavigate, useLocation } from 'react-router-dom';
+>>>>>>> 2aed3a1 (Initial commit)
 import { useAppContext } from '../../lib/context/AppContext';
 import { ContextSwitcher } from './ContextSwitcher';
 import { CreateWorkspaceModal } from '../workspace/CreateWorkspaceModal';
@@ -102,9 +107,12 @@ const DashboardLayout = () => {
       >
         <div className="p-6 border-b border-slate-200 flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-bold bg-gradient-to-r from-indigo-600 to-emerald-500 bg-clip-text text-transparent">
+            <Link
+              to="/"
+              className="text-2xl font-bold bg-gradient-to-r from-indigo-600 to-emerald-500 bg-clip-text text-transparent"
+            >
               SecureFlow
-            </h1>
+            </Link>
             <p className="text-xs font-semibold text-slate-400">Personal Dashboard</p>
             <p className="text-[10px] text-slate-400 mt-0.5">Private Space</p>
           </div>
