@@ -1,14 +1,9 @@
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
-<<<<<<< HEAD
-=======
 import { randomUUID } from 'node:crypto';
->>>>>>> 2aed3a1 (Initial commit)
 import { OAuth2Client } from 'google-auth-library';
 import prisma from '../lib/prisma.js';
 import { registerSchema, loginSchema, googleAuthSchema } from '../lib/validations.js';
-
-const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID || '');
 
 const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
@@ -101,59 +96,6 @@ export const login = async (data: { email: string; password: string }) => {
   return { user: sanitizeUser(user), token };
 };
 
-export const loginWithGoogle = async (credential: string) => {
-  const clientId = process.env.GOOGLE_CLIENT_ID;
-  if (!clientId) {
-    throw new Error('Google sign-in is not configured');
-  }
-
-  const ticket = await googleClient.verifyIdToken({
-    idToken: credential,
-    audience: clientId,
-  });
-  const payload = ticket.getPayload();
-
-  if (!payload?.email || !payload.email_verified || !payload.sub) {
-    throw new Error('Google account email could not be verified');
-  }
-
-  const now = new Date();
-  let user = await prisma.user.findUnique({ where: { email: payload.email } });
-
-  if (!user) {
-    user = await prisma.user.create({
-      data: {
-        id: randomUUID(),
-        email: payload.email,
-        password: randomUUID(),
-        fullName: payload.name || payload.email.split('@')[0],
-        avatar: payload.picture || null,
-        isVerified: true,
-        updatedAt: now,
-      },
-    });
-
-    await prisma.subscription.create({
-      data: {
-        id: randomUUID(),
-        userId: user.id,
-        plan: 'FREE',
-        updatedAt: now,
-      },
-    });
-  }
-
-  await prisma.securitylog.create({
-    data: {
-      id: randomUUID(),
-      userId: user.id,
-      action: 'GOOGLE_LOGIN',
-    },
-  });
-
-  return { user: sanitizeUser(user), token: generateToken(user) };
-};
-
 export const getCurrentUser = async (userId: string) => {
   const user = await prisma.user.findUnique({
     where: { id: userId },
@@ -203,25 +145,27 @@ export const loginWithGoogle = async (data: { credential: string; clientId?: str
 
   if (!user) {
     isNewUser = true;
-    const randomPassword =
-      'google-oauth::' +
-      Buffer.from(crypto.getRandomValues(new Uint8Array(32))).toString('base64');
+    const randomPassword = `google-oauth::${randomUUID()}`;
     const hashedPassword = await bcrypt.hash(randomPassword, 12);
 
     user = await prisma.user.create({
       data: {
+        id: randomUUID(),
         email,
         password: hashedPassword,
         fullName,
         avatar,
         isVerified: true,
+        updatedAt: new Date(),
       },
     });
 
     await prisma.subscription.create({
       data: {
+        id: randomUUID(),
         userId: user.id,
         plan: 'FREE',
+        updatedAt: new Date(),
       },
     });
   } else if (!user.avatar && avatar) {
@@ -236,8 +180,9 @@ export const loginWithGoogle = async (data: { credential: string; clientId?: str
     });
   }
 
-  await prisma.securityLog.create({
+  await prisma.securitylog.create({
     data: {
+      id: randomUUID(),
       userId: user.id,
       action: 'LOGIN_GOOGLE',
     },

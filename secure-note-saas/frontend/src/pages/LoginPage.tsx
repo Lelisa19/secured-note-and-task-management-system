@@ -1,13 +1,7 @@
-<<<<<<< HEAD
-import { useState, useEffect } from 'react';
-=======
 import { useCallback, useState } from 'react';
->>>>>>> 2aed3a1 (Initial commit)
 import { Link, useNavigate } from 'react-router-dom';
 import { GoogleLogin, type CredentialResponse } from '@react-oauth/google';
 import { apiRequest } from '../lib/api';
-import useGoogleSignIn from '../lib/useGoogleSignIn';
-import type { GoogleSignInResult } from '../lib/useGoogleSignIn';
 
 const LoginPage = () => {
   const navigate = useNavigate();
@@ -17,34 +11,6 @@ const LoginPage = () => {
   const [rememberMe, setRememberMe] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [apiError, setApiError] = useState<string | null>(null);
-
-  const onGoogleSuccess = async (data: GoogleSignInResult, rememberMe: boolean) => {
-    const authStorage = rememberMe ? localStorage : sessionStorage;
-    authStorage.setItem('token', data.token);
-    authStorage.setItem('user', JSON.stringify(data.user));
-    if (rememberMe) {
-      sessionStorage.removeItem('token');
-      sessionStorage.removeItem('user');
-    } else {
-      localStorage.removeItem('token');
-      localStorage.removeItem('user');
-    }
-    if (data.user?.role === 'ADMIN') {
-      navigate('/admin');
-    } else {
-      navigate('/dashboard');
-    }
-  };
-
-  const google = useGoogleSignIn({
-    onSuccess: onGoogleSuccess,
-    onError: (msg) => setApiError(msg),
-    mode: 'button',
-  });
-
-  useEffect(() => {
-    google.rememberGoogleRemember(rememberMe);
-  }, [rememberMe, google]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -78,11 +44,7 @@ const LoginPage = () => {
   };
 
   const handleSocialUnavailable = (provider: string) => {
-    if (provider === 'Google') {
-      google.triggerPopup();
-      return;
-    }
-    alert(`${provider} sign-in is coming soon. Please use email & password or Google for now.`);
+    alert(`${provider} sign-in is coming soon. Please use email & password for now.`);
   };
 
   const handleGoogleSuccess = useCallback(async ({ credential }: CredentialResponse) => {
@@ -213,11 +175,6 @@ const LoginPage = () => {
               </div>
 
               <div className="grid grid-cols-2 gap-4">
-<<<<<<< HEAD
-                <div className="flex items-center justify-center">
-                  <div ref={google.buttonRef} className="w-full flex items-center justify-center" />
-                </div>
-=======
                 {import.meta.env.VITE_GOOGLE_CLIENT_ID ? (
                   <div className="flex items-center justify-center py-2 bg-white border border-slate-200 rounded-xl">
                     <GoogleLogin onSuccess={handleGoogleSuccess} onError={handleGoogleError} />
@@ -232,7 +189,6 @@ const LoginPage = () => {
                     <span className="font-medium text-slate-700">Google</span>
                   </button>
                 )}
->>>>>>> 2aed3a1 (Initial commit)
                 <button
                   type="button"
                   onClick={() => handleSocialUnavailable('GitHub')}

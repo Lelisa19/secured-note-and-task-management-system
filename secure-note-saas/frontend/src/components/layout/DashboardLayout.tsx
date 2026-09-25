@@ -1,10 +1,5 @@
-<<<<<<< HEAD
 import { useEffect, useRef, useState } from 'react';
-import { Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
-=======
-import { useState } from 'react';
 import { Routes, Route, Navigate, Link, useNavigate, useLocation } from 'react-router-dom';
->>>>>>> 2aed3a1 (Initial commit)
 import { useAppContext } from '../../lib/context/AppContext';
 import { ContextSwitcher } from './ContextSwitcher';
 import { CreateWorkspaceModal } from '../workspace/CreateWorkspaceModal';
