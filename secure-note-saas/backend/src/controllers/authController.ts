@@ -37,7 +37,7 @@ export const login = async (req: Request, res: Response) => {
 
 export const googleLogin = async (req: Request, res: Response) => {
   try {
-    const result = await authService.loginWithGoogle(req.body.credential);
+    const result = await authService.loginWithGoogle(req.body);
     res.json(result);
   } catch (error: any) {
     logRequestError('POST /api/auth/google', error);
